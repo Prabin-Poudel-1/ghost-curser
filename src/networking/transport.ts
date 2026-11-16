@@ -1,0 +1,21 @@
+export interface TransportHandlers {
+  join(id: string): void;
+  leave(id: string): void;
+  message(raw: unknown, id: string): void;
+  error(message: string, terminal?: boolean): void;
+}
+export interface Transport {
+  send(raw: string, target?: string): Promise<void>;
+  close(): Promise<void>;
+}
+export type TransportFactory = (
+  page: string,
+  secret: string,
+  handlers: TransportHandlers,
+) => Transport;
+
+export type RoomTransportFactory = (
+  topic: string,
+  secret: string,
+  handlers: TransportHandlers,
+) => Transport;

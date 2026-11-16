@@ -1,0 +1,50 @@
+{
+  "name": "ghostcursor",
+  "version": "0.1.0",
+  "description": "Private peer-to-peer cursors for Chromium webpages",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build && vite build --config vite.content.config.ts",
+    "build:test": "vite build --mode test && vite build --config vite.content.config.ts --mode test",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "npm run build && npm run build:test && playwright test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "prebuild": "node scripts/clean.mjs dist",
+    "prebuild:test": "node scripts/clean.mjs dist-test"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "module",
+  "dependencies": {
+    "trystero": "0.27.0"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "3.0.0",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.1",
+    "@types/chrome": "0.3.7",
+    "@types/node": "26.6.6",
+    "@types/ws": "8.18.2",
+    "eslint": "10.15.0",
+    "jsdom": "31.0.1",
+    "prettier": "3.10.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0",
+    "ws": "8.23.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.8"
+    }
+  }
+}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>GhostCursor</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32">
+            <path
+              d="M7 24V13a9 9 0 0 1 18 0v11l-4-3-5 3-5-3Z"
+              fill="currentColor"
+            />
+            <circle cx="13" cy="13" r="1.5" fill="#22232a" />
+            <circle cx="20" cy="13" r="1.5" fill="#22232a" />
+          </svg>
+        </div>
+        <div>
+          <h1>GhostCursor</h1>
+          <p class="tagline">Browse together. Point anywhere.</p>
+        </div>
+        <span class="version">01</span>
+      </header>
+      <div class="status-line">
+        <span id="status" role="status" aria-live="polite">Disconnected</span
+        ><span class="private-label">PRIVATE BY DESIGN</span>
+      </div>
+      <div id="error" role="alert" hidden></div>
+      <section id="setup">
+        <h2>A shared space.<br /><span>On any ordinary page.</span></h2>
+        <p class="intro">
+          Invite your people. See where they point.<br />Your screen stays
+          yours.
+        </p>
+        <label for="name">Your display name</label
+        ><input
+          id="name"
+          maxlength="24"
+          autocomplete="off"
+          placeholder="Your name"
+          value="Guest"
+        />
+        <fieldset>
+          <legend>Your cursor</legend>
+          <div id="colors" class="colors"></div>
+        </fieldset>
+        <button id="create" class="primary">
+          Create a private room <span aria-hidden="true">↗</span>
+        </button>
+        <div class="divider"><span>or join your people</span></div>
+        <label for="join-code">Invitation code</label>
+        <div class="join-row">
+          <input
+            id="join-code"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="gc1_…"
+          /><button id="join" class="secondary">Join</button>
+        </div>
+        <p class="hint">Open the same webpage before joining.</p>
+      </section>
+      <section id="session" hidden>
+        <h2>You’re in the room.</h2>
+        <p id="connection-detail" class="intro"></p>
+        <label for="invitation">Private invitation</label>
+        <div class="invitation-box">
+          <input
+            id="invitation"
+            readonly
+            aria-label="Private invitation"
+          /><button id="copy" class="secondary">Copy invitation</button>
+        </div>
+        <p class="hint">Anyone with this code can join. Share it privately.</p>
+        <div class="roster-heading">
+          <h3>In this space</h3>
+          <span id="count"></span>
+        </div>
+        <ul id="participants" aria-label="Participants"></ul>
+        <button id="retry" class="secondary full">Retry connection</button
+        ><button id="leave" class="leave full">
+          Leave room <span aria-hidden="true">↗</span>
+        </button>
+      </section>
+      <footer>
+        <span class="shield" aria-hidden="true">◇</span>
+        <p>
+          Cursors, names & presence are shared.<br />Public relays handle
+          connection metadata. <span>No screen sharing.</span>
+        </p>
+      </footer>
+    </main>
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>
