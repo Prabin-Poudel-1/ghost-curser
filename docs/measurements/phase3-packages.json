@@ -1,0 +1,14 @@
+[
+  {
+    "name": "ghostcursor-0.3.0-chromium.zip",
+    "bytes": 82009,
+    "sha256": "ba56feb73c1ac4ce416d0fd12f0ac8e72a4057395e7b4023023fb3fd45a9590d",
+    "unpackedBytes": 224322
+  },
+  {
+    "name": "ghostcursor-0.3.0-firefox.zip",
+    "bytes": 82894,
+    "sha256": "07263dd668485a34375f2e656b04612c6602e8e769413bbabe8ffb051e547c73",
+    "unpackedBytes": 226862
+  }
+]

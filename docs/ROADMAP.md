@@ -19,12 +19,19 @@ The former proposal for text quotes, element IDs and accessible-name anchors was
 
 Possible follow-up collaboration improvements, outside this task: explicit orphan reattachment, note-card collision layout, stronger room-wide color convergence, optional note history with a reviewed trust/persistence model, and broader responsive/animation/accessibility fixtures. Structural ambiguity is surfaced rather than hidden.
 
-## Phase 3 — planned, not implemented here
+## Phase 3 — implemented, with explicit release limits
 
-- Verify Chrome/Edge/Brave manually across browser versions and policies; review permissions, accessibility, dependencies/licenses, hostile-page/peer behavior and external-network connectivity.
-- Prepare a separate Firefox manifest/build and session-host adapter. Chrome's offscreen lifecycle is not portable; test Firefox's supported background document model before claiming compatibility.
-- Prioritize Edge and Firefox publication under the initial $0 budget, checking current enrollment/signing policies when submission is authorized. Chrome/Brave initially use local installation.
-- Expand schema fuzzing, pre-auth resource protection, reconnect/packet-delay stress tests, eight-peer load benchmarks and security review. Consider TURN only as a separately authorized infrastructure/privacy decision; no guaranteed-connectivity claim.
+- Separate Chromium and Firefox production builds, a native browser API adapter, and a browser-independent session-host interface.
+- Chromium keeps its offscreen context; Firefox uses a visible extension-owned networking tab and non-persistent background routing.
+- Genuine Firefox ↔ Firefox and Firefox ↔ Chromium local WebRTC tests, explicit Firefox event-page termination, Chromium host interruption/recovery, and all previous feature tests.
+- Stable Firefox ID and reviewed data-consent categories; no unsupported offscreen permission, raw URL signaling, account identities or new host grants.
+- Bounded jittered transport recovery, protocol-suite compatibility negotiation, stricter transport identity binding after presence expiry, and pre-IPC rate limiting.
+- Bounded anchor traversal, coalesced/throttled note positioning, detached-body observer replacement, visibility-aware transient rendering, and repeated/longer-session resource checks.
+- Repeatable ZIP packaging, Mozilla lint validation, full audit disclosure and a combined manual guide. One unpatched low-severity advisory remains in Mozilla's development-only linter dependency chain; production runtime dependencies audit clean.
+
+Still required before a public store release: branded Edge/Chrome/Brave manual runs, older-version coverage, cross-network/NAT tests, broader accessibility and website checks, eight-peer/hour-scale benchmarks, dependency/license review and independent security review. No TURN infrastructure is deployed. No Firefox signing or store submission has occurred.
+
+GitHub `origin` is configured. Initial normal pushes were blocked by commit-email privacy protection. The owner asked to keep history local and not push; all prior commits remain preserved and Phase 3 is unmerged. Resume publishing only after a new authorization resolves that boundary.
 
 ## Phase 4 — planned, not implemented here
 
@@ -34,6 +41,7 @@ Evaluate free static hosting such as Cloudflare Pages at launch time. Distinguis
 
 ## Extensible seams
 
+- `SessionHost` / native `api`: browser-specific host activation without a shared lifecycle assumption.
 - `Transport` / `TransportFactory` / `RoomTransportFactory`: rendering-independent networking adapters.
 - `Connection` / `SessionEvents.feature`: validated identity, presence, recovery and feature dispatch.
 - `FeatureMessage` / `DomAnchor` / `NoteRecord`: strict versioned wire schemas.

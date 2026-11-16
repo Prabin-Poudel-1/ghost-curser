@@ -1,0 +1,25 @@
+{
+  "scope": "Page renderer after leave and GC; repeated same-page activations",
+  "samples": [
+    {
+      "documents": 1,
+      "nodes": 109,
+      "jsEventListeners": 13
+    },
+    {
+      "documents": 1,
+      "nodes": 109,
+      "jsEventListeners": 13
+    },
+    {
+      "documents": 1,
+      "nodes": 109,
+      "jsEventListeners": 13
+    },
+    {
+      "documents": 1,
+      "nodes": 109,
+      "jsEventListeners": 13
+    }
+  ]
+}

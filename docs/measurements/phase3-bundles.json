@@ -1,0 +1,162 @@
+{
+  "chromium": {
+    "totalBytes": 224322,
+    "files": [
+      {
+        "file": "THIRD_PARTY_NOTICES.txt",
+        "bytes": 4749,
+        "gzipBytes": 971
+      },
+      {
+        "file": "assets/index-CTXSMjge.css",
+        "bytes": 4223,
+        "gzipBytes": 1519
+      },
+      {
+        "file": "assets/index.html-CKJyMGcM.js",
+        "bytes": 4200,
+        "gzipBytes": 1893
+      },
+      {
+        "file": "assets/index.ts-BtqGztsY.js",
+        "bytes": 1791,
+        "gzipBytes": 978
+      },
+      {
+        "file": "assets/modulepreload-polyfill-P2Xu9kJm.js",
+        "bytes": 670,
+        "gzipBytes": 392
+      },
+      {
+        "file": "assets/offscreen-DGFU7P1V.js",
+        "bytes": 156490,
+        "gzipBytes": 55385
+      },
+      {
+        "file": "assets/security-BKKgY_Dk.js",
+        "bytes": 1708,
+        "gzipBytes": 933
+      },
+      {
+        "file": "assets/types-3AjHEmuc.js",
+        "bytes": 67,
+        "gzipBytes": 87
+      },
+      {
+        "file": "content.js",
+        "bytes": 44359,
+        "gzipBytes": 14161
+      },
+      {
+        "file": "icons/128.png",
+        "bytes": 527,
+        "gzipBytes": 390
+      },
+      {
+        "file": "icons/16.png",
+        "bytes": 112,
+        "gzipBytes": 128
+      },
+      {
+        "file": "icons/48.png",
+        "bytes": 195,
+        "gzipBytes": 199
+      },
+      {
+        "file": "manifest.json",
+        "bytes": 681,
+        "gzipBytes": 382
+      },
+      {
+        "file": "service-worker-loader.js",
+        "bytes": 40,
+        "gzipBytes": 60
+      },
+      {
+        "file": "src/networking/offscreen.html",
+        "bytes": 413,
+        "gzipBytes": 254
+      },
+      {
+        "file": "src/popup/index.html",
+        "bytes": 4097,
+        "gzipBytes": 1475
+      }
+    ]
+  },
+  "firefox": {
+    "totalBytes": 226862,
+    "files": [
+      {
+        "file": "THIRD_PARTY_NOTICES.txt",
+        "bytes": 4749,
+        "gzipBytes": 971
+      },
+      {
+        "file": "assets/popup-CGth0KFj.js",
+        "bytes": 4308,
+        "gzipBytes": 1928
+      },
+      {
+        "file": "assets/popup-CTXSMjge.css",
+        "bytes": 4223,
+        "gzipBytes": 1519
+      },
+      {
+        "file": "assets/security-Bt5WWhOh.js",
+        "bytes": 2033,
+        "gzipBytes": 1133
+      },
+      {
+        "file": "assets/session-DB0S5yDB.js",
+        "bytes": 156782,
+        "gzipBytes": 55503
+      },
+      {
+        "file": "assets/session-GHXruugA.css",
+        "bytes": 573,
+        "gzipBytes": 357
+      },
+      {
+        "file": "background.js",
+        "bytes": 3091,
+        "gzipBytes": 1515
+      },
+      {
+        "file": "content.js",
+        "bytes": 44343,
+        "gzipBytes": 14152
+      },
+      {
+        "file": "icons/128.png",
+        "bytes": 527,
+        "gzipBytes": 390
+      },
+      {
+        "file": "icons/16.png",
+        "bytes": 112,
+        "gzipBytes": 128
+      },
+      {
+        "file": "icons/48.png",
+        "bytes": 195,
+        "gzipBytes": 199
+      },
+      {
+        "file": "manifest.json",
+        "bytes": 973,
+        "gzipBytes": 486
+      },
+      {
+        "file": "src/networking/session.html",
+        "bytes": 1030,
+        "gzipBytes": 566
+      },
+      {
+        "file": "src/popup/index.html",
+        "bytes": 3923,
+        "gzipBytes": 1436
+      }
+    ]
+  }
+}

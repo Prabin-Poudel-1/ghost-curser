@@ -1,0 +1,29 @@
+{
+  "scope": "Chromium page renderer, 12 notes, 20 laser strokes, 60-second idle interval; offscreen excluded",
+  "start": {
+    "documents": 1,
+    "nodes": 333,
+    "jsEventListeners": 67,
+    "heap": 2686040,
+    "task": 1.687546,
+    "timestamp": 750327.90797
+  },
+  "idle": {
+    "documents": 1,
+    "nodes": 333,
+    "jsEventListeners": 67,
+    "heap": 2686940,
+    "task": 1.765099,
+    "timestamp": 750387.926733
+  },
+  "cleaned": {
+    "documents": 1,
+    "nodes": 155,
+    "jsEventListeners": 26,
+    "heap": 3342436,
+    "task": 1.800283,
+    "timestamp": 750388.055372
+  },
+  "idleTaskSeconds": 0.07755299999999998,
+  "idleWallSeconds": 60.01876300002914
+}

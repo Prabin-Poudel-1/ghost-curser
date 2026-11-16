@@ -1,6 +1,6 @@
 # Architecture and dependency decisions
 
-## Process boundaries
+## Chromium process boundaries
 
 ```text
 Toolbar popup ── commands ──> MV3 service worker
@@ -70,3 +70,17 @@ Authoritative references consulted during implementation:
 - [Trystero connection troubleshooting](https://trystero.dev/docs/connections/)
 
 Installed package declarations and source, rather than stale online examples, were used to resolve API differences.
+
+## Phase 3 browser and reliability adapter
+
+`src/browser/api.ts` selects native Promise APIs. `SessionHost.ensure()` in `session-host.ts` isolates Chromium offscreen creation from Firefox networking-tab creation/readiness. Firefox has its own plain Vite HTML and background IIFE builds; CRXJS continues to own only the Chromium manifest/worker build. Both content bundles use the same application code with a compile-time browser target. Test flags and loopback permissions are separate builds.
+
+Firefox's non-persistent background script only routes activation/control. A visible extension-owned session tab imports the shared transport host, and therefore owns WebSocket/WebRTC and the content runtime port. An explicit ping ensures it is ready; duplicate starts share a creation promise and reuse an existing host. Closing it revokes participation. Its idle document may remain open without an active room; it never stores invitations or notes durably. Tests force the Firefox background to `stopped` and continue exchanging cursors, proving the event page does not own networking.
+
+An additive strict v1 `compat` message advertises suite bounds 1–2. A nonintersecting range suppresses the peer and shows an update error. Current v1 cursors and v2 annotations retain their formats, HMAC topic context and Trystero action names. Unknown schemas are never guessed or coerced. The bound session ID is retained even when displayed presence expires.
+
+A four-attempt jittered exponential recovery budget wraps recoverable transport failures, with a restart lock and generation checks. The content page can ask the routing background to restore a Chromium host before retrying. Firefox host closure is explicit end, not recovery. A single empty creator does not cause repeated room recreation. The pinned Nostr implementation also has its own relay health cooldowns; websocket handshake probing is recorded separately from actual room connectivity.
+
+Security-sensitive API or host errors are classified, never reflected verbatim with raw tokens/URLs. Permission-removal notifications route to host revocation. Input messages are rate limited before IPC, then schema/identity checked in the page state machine. Annotation queue and size limits remain unchanged.
+
+Node traversal is bounded, note invalidations are throttled to 20 Hz, hidden-page annotation work pauses, and detached body observation is replaced. No broad redesign or UI framework was introduced. See the measured renderer scope and audit exception in the current verification/security reports.

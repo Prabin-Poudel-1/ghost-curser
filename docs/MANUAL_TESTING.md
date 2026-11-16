@@ -1,42 +1,95 @@
-# Manual Phase 2 verification
+# Combined Phase 2 + Phase 3 manual guide
 
-Use two **independent Chrome profiles**, not two tabs in one profile. Install the production `dist/` folder or extracted 0.2.0 ZIP in both via `chrome://extensions` → Developer mode → Load unpacked. The same workflow applies to Edge, but Edge has not been executed in the automated suite.
+This guide is for the later manual test round. No manual testing is required to build the project or run the automated suite now. Use dummy information and a trusted test webpage. Notes disappear when their author leaves or refreshes.
 
-## Reusable webpage
+## 1. Install Chromium v0.3.0
 
-From the repository root:
+1. Extract `ghostcursor-0.3.0-chromium.zip` into a folder you will keep.
+2. In Chrome, enter `chrome://extensions` in the address bar. In Edge, use `edge://extensions`.
+3. Turn on **Developer mode**, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
+4. Pin GhostCursor using the browser's extensions menu.
+5. Repeat in a **second browser profile**. Two ordinary tabs in one profile are not independent participants.
+
+Developers can instead run `npm ci` and `npm run build:all`, then load the `dist` folder. Brave can use its extensions page, but its privacy settings may affect WebRTC; do not weaken them automatically.
+
+## 2. Load Firefox v0.3.0 temporarily
+
+1. Use Firefox desktop **142 or newer**.
+2. Extract `ghostcursor-0.3.0-firefox.zip`.
+3. Open `about:debugging#/runtime/this-firefox`.
+4. Click **Load Temporary Add-on** and select the extracted `manifest.json`.
+5. Find GhostCursor in Firefox's extensions menu and pin it if desired.
+
+The Firefox ZIP is **unsigned**. Temporary installation lasts until Firefox restarts. It is not a signed, publicly installable add-on. Developers can load `dist-firefox/manifest.json` after `npm run build:firefox`. No Mozilla submission or signing has occurred.
+
+Firefox creates a separate **GhostCursor session** tab when you start collaboration. Keep that tab open and return to the webpage. Closing the popup is fine. Closing the session tab or choosing its **End collaboration** button deliberately ends this profile's participation.
+
+## 3. Open a matching webpage
+
+Both participants must open the same URL origin and pathname. Begin with a normal trusted page, or use the included fixture:
 
 ```sh
 python3 -m http.server 8788 --bind 127.0.0.1 --directory tests/fixtures
 ```
 
-Open `http://127.0.0.1:8788/collaboration.html` in both profiles. It contains buttons, cards, mock sensitive fields, long and nested scroll sections, and a responsive layout. Its sample values are dummy test data. This command serves only the webpage; the production extension still uses its normal public signaling services. If those services are unavailable, use `npm run test:e2e` for reproducible local signaling with real WebRTC. Do not leave the test extension installed for everyday browsing.
+Open `http://127.0.0.1:8788/collaboration.html` in both browsers on the same computer. The fixture has buttons, responsive cards, mock sensitive fields, a long page and a nested scroll area. It uses dummy values. This command serves the webpage only: the production extensions still use public signaling. For deterministic local signaling, run `npm run test:e2e`; that is automated real WebRTC, not a manual production-relay test.
 
-## Acceptance checklist
+Use one window about 1000 pixels wide and another about 1200 pixels wide. Keep the same content visible initially. Page queries/fragments are excluded from matching; two personalized pages can therefore match while showing different content.
 
-1. Set profile A to approximately 1000 × 800 pixels and B to 1200 × 800. In A's extension popup, choose a name/color and create a private room. Close the popup.
-2. Before B joins, select **Sticky note** in A's floating toolbar, then click **Review card**. Type a comment and choose **Share note**. It should appear beside the button. Native page clicks still execute; hover + Enter is useful for links.
-3. In B, open GhostCursor from the actual browser toolbar, enter a name, paste A's complete invitation and join. Both profiles should show Connected and the other participant. B should receive A's preexisting note. Close both popups.
-4. Move each pointer over a safe page area. The remote labeled cursor should follow. Click a safe area: the other profile should see a short matching-color ripple. Click/type in a password or form field: no field content or click ripple should be shared. Extension toolbar/editor clicks should not create shared ripples.
-5. Select **Laser** in A, hold and move across a safe area, then release. B should see the trail, which expires in about three seconds. Repeat and use **Clear temporary drawings** to remove A's trail immediately. Ordinary wheel/trackpad scrolling should work. Escape returns to Navigate.
-6. Edit A's note. B should update. B should see author and timestamp, but no edit/delete controls for A's note. Add a second note from B. Open A's popup, change A's display name and choose **Update**; cursor/roster/note labels should reflect the new name without creating a new participant.
-7. Scroll each profile independently so the review button stays visible. Its note should follow its local element, while cursors/lasers remain viewport-relative. Resize the windows and exercise the nested scroll area. Test a narrow window for toolbar clamping; notes may be clamped or crowded.
-8. In B's page DevTools console, replace the target with an equivalent node:
+## 4. Create and join
 
-   ```js
-   const target = document.querySelector('#review-button');
-   const replacement = target.cloneNode(true);
-   target.replaceWith(replacement);
-   ```
+1. In browser A, click the actual GhostCursor extension icon while the webpage is active.
+2. Choose a display name and color, then **Create a private room**.
+3. Copy the entire `gc1_…` invitation. Share it privately; it is the room's bearer secret.
+4. In browser B, open GhostCursor, enter a different name, paste the invitation, and choose **Join**.
+5. Both popups should show **Connected** and the other participant. Close both popups.
 
-   The note should remain anchored. Remove `replacement`; the card should move into the unplaced-note area. Reinsert it in its original structural position; it should resolve again. Ambiguous sibling changes should stay unplaced. This test deliberately uses page scripting; GhostCursor itself never sends or executes these commands.
+The room creator waits in **Connecting** until a peer joins. A timeout message does not prove the invitation is wrong. Public relays, NATs and firewalls can prevent connections; there is no TURN fallback. Do not report cross-network success unless the test actually uses separate networks.
 
-9. Drag the toolbar grip, including near viewport edges. Tab to the grip and use arrow keys. Confirm selected tools expose their state and every button is keyboard reachable. Hide/show remote cursors. Enable the OS reduced-motion preference and confirm ripples stay static until they disappear.
-10. Delete A's note; it should disappear in B. Leave A via the toolbar; A's overlays should vanish and its remaining remote notes/cursor should be removed from B. B's own note stays until B leaves. Repeat activation several times: no duplicate toolbar or overlays should remain.
-11. For recovery, keep A active with an authored note and choose **Retry connection**. On reconnection its local note should resynchronize. Refresh or navigate A: it should leave and lose its session notes. Rejoining after refresh starts a new identity and has no authored history.
+## 5. Check cursors and clicks
 
-## Record results honestly
+Move both pointers on safe areas. Each browser should see the other's labeled cursor. Leave a pointer still for six seconds; the remote cursor should hide. Click a safe area: the peer should see a short color-matched ripple. Click/type into the dummy password/form fields: no content or click ripple should be shared. Clicking extension controls must not create page ripples.
 
-Record extension version, browser/version, operating system, viewport widths, page URL (keep private URLs out of public reports), network topology, observations and failures. The automated tests use two independent Chromium processes, encrypted Trystero signaling, real DataChannels, and a local relay. They do not establish public-relay or cross-network reliability.
+Resize and scroll independently. Cursors/clicks use viewport fractions, so they may point at different elements when layouts or scroll positions differ. The extension does not scroll or click the remote webpage.
 
-Phase 1 had a reported successful manual run in two Chrome profiles. Phase 2's delivered evidence is automated independent-profile testing and actual screenshots; this guide is not itself a claim that a separate human manual run was performed.
+## 6. Check lasers and toolbar
+
+Choose **Laser**, hold the primary pointer button and move across a safe area, then release. The other browser should show the trail, fading after about three seconds. Draw again and choose **Clear temporary drawings**. Your trail should disappear remotely; other authors keep control of their own drawings.
+
+Ordinary scrolling should work. Touch scrolling may cancel a stroke. Long strokes hit a point limit; release and start another. Press **Escape** to return to Navigate. Drag the toolbar grip near the edges, then Tab to it and use arrow keys. Try **Hide remote cursors** and **Show remote cursors**. Every control should be keyboard reachable. With reduced motion enabled in the OS, ripples should stay static until removal.
+
+## 7. Check notes, ownership and late joining
+
+1. Choose **Sticky note**, click **Review card**, enter a comment and choose **Share note**. Hover + Enter selects without a native click, useful for links.
+2. Confirm the peer sees the author, timestamp and text beside the same button.
+3. Edit your note and verify the peer updates. Only its author has Edit/Delete controls. Each participant can create their own notes.
+4. Change your display name in the popup and choose **Update**; the peer's labels should change without a new identity appearing.
+5. Scroll/resize while the target remains visible; its note should track its local element.
+6. Delete the note and verify deletion remotely.
+7. For late joining, first create a note in A before starting B's session. B should receive it after joining.
+
+Optional DOM replacement test for developers: use the webpage DevTools console to replace `document.querySelector('#review-button')` with a clone. The note should resolve again. Remove it entirely: the note should move to the unplaced-note area. Reinsert it in the same structure: it should recover. Ambiguous structure stays unplaced. GhostCursor never sends or executes these DOM commands remotely.
+
+Limits: 16 note IDs per author per session, including deleted IDs; 600 characters per note. Notes may overlap in crowded layouts. Structural anchors cannot prove semantic equivalence of personalized or identically reordered pages.
+
+## 8. Check Firefox ↔ Chrome / Edge
+
+Install the Firefox ZIP in Firefox and the Chromium ZIP in Chrome or Edge. Open the same fixture and repeat steps 4–7 with the same invitation. Leave Firefox's session tab open. Reverse who creates the room. No conversion or different invitation format is needed.
+
+Automated Firefox ↔ Playwright Chromium and Firefox ↔ Firefox tests passed. Branded Chrome/Edge combinations and public cross-network traversal still need this manual round. See [compatibility](COMPATIBILITY.md).
+
+## 9. Check recovery and cleanup
+
+- Reopen/close the popup repeatedly; the session should stay connected.
+- Choose **Retry connection** after a temporary failure. The popup should show accurate feedback; retained local authored notes should resynchronize after recovery.
+- Briefly disconnect/reconnect the network. Allow heartbeat expiry and bounded retry time; record exact timing. Automatic host recreation is limited to four jittered attempts. A fresh manual Retry resets the budget. Public relay reconnection also has the library's own backoff.
+- Leave from the toolbar. All local GhostCursor overlays should disappear; the peer should lose your cursor and notes. Rejoin explicitly. Repeat several times and check for duplicate toolbars.
+- Refresh, close or navigate the collaboration page: participation should end. There is no automatic restoration of session notes.
+- In Firefox, close the **session tab**: local overlays should disappear and the peer should lose you. The tab must not silently reopen. Start again from the popup if desired.
+- Disable/remove the extension or revoke its permissions using browser controls. Sharing must stop. If a browser does not emit its expected disconnect/revocation event promptly, record the browser version and reload the webpage; this UI path remains part of manual verification.
+
+## 10. Report a failure
+
+Record version **0.3.0**, browser names/versions, operating system, window sizes, whether the browsers were on the same machine/network, and the exact steps and timing. State whether you used production public signaling or the automated local fixture. Include the visible error text and whether popups/session tabs were open. A screenshot of the dummy test page is useful, but remove invitations, real notes and private URLs before sharing it.
+
+Do not post room secrets, cookies, authentication tokens, real form data or full private browsing URLs. Reproduce with a fresh room and the dummy fixture if possible. The source and [verification report](VERIFICATION.md) distinguish confirmed automated results from pending manual and external-network tests.

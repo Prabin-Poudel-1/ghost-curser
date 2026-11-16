@@ -1,0 +1,31 @@
+{
+  "at": "2026-11-16T09:32:53.750Z",
+  "scope": "WebSocket handshakes to five library defaults from one machine; not a room, ICE, public-peer or cross-network test",
+  "results": [
+    {
+      "url": "wss://bucket.coracle.social",
+      "outcome": "websocket-open",
+      "milliseconds": 1247
+    },
+    {
+      "url": "wss://fanfares.nostr1.com",
+      "outcome": "websocket-open",
+      "milliseconds": 1098
+    },
+    {
+      "url": "wss://no.str.cr",
+      "outcome": "websocket-open",
+      "milliseconds": 1934
+    },
+    {
+      "url": "wss://nostr-01.yakihonne.com",
+      "outcome": "websocket-open",
+      "milliseconds": 866
+    },
+    {
+      "url": "wss://nostr-pub.wellorder.net",
+      "outcome": "timeout",
+      "milliseconds": 10001
+    }
+  ]
+}
