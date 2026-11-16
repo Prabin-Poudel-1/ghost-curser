@@ -9,7 +9,7 @@ Toolbar popup ── commands ──> MV3 service worker
 Activated top-frame content script ── runtime.Port ──> Extension offscreen document
   Connection state + page identity                       HMAC page topic
   Pointer capture (20 Hz maximum)                        Trystero identity + signaling
-  Shadow DOM + SVG cursors                               WebRTC DataChannels
+  Shadow DOM cursors, effects, notes                               WebRTC DataChannels
                                   <── join/leave/messages ──┘
 ```
 
@@ -27,13 +27,31 @@ The page session tracks `connecting`, `connected`, and `disconnected` plus its c
 
 Local leave removes overlay, listeners, timers, pending cursor work, invitation, and participant state immediately, then closes the port/room. A single dormant runtime command dispatcher remains for explicit reactivation; page input listeners are removed. Navigation triggers the same cleanup. SPA pathname changes are checked every 500 ms; query/fragment changes intentionally retain the same page room. After refresh or navigation there is no automatic resumption.
 
-## Wire protocol
+## Cursor protocol and transport
 
 v1 uses strict JSON messages with an exact field set: `hello`, `cursor`, `hide`, `beat`, and `bye`. Cursors use normalized `[0,1]` CSS viewport coordinates, quantized to four decimals, with monotonically increasing sequence numbers. Receivers reject invalid ranges, versions, types, extra fields, unsafe sequences, empty/oversized/control-character names, and unknown peers.
 
-The application action rejects payloads above 512 bytes before delivery, and its decoder also rejects strings longer than 512 code units. Trystero's aggregate receive budget is 16 KiB: its authenticated identity handshake exceeds the cursor-message limit. Setting the whole room to 512 bytes was tested and broke the handshake. Each peer is limited to 60 application messages per second after decoding by the library; this bounds application work but is not a network-level DoS firewall.
+The v1 decoder rejects strings longer than 512 code units. Phase 2 raises the shared application-action limit to 4096 UTF-8 bytes for validated v2 annotation messages. Trystero's aggregate receive budget is 16 KiB: its authenticated identity handshake exceeds the cursor-message limit. Setting the whole room to 512 bytes was tested and broke the handshake. Each peer is limited to 60 application messages per second after decoding by the library; this bounds application work but is not a network-level DoS firewall.
 
 Outgoing motion samples at most every 50 ms. Only one cursor send is pending at a time; superseded movements are dropped rather than accumulating. Extension bridge sends have a five-second deadline and a 16-request cap. The overlay uses compositor transforms and `requestAnimationFrame` until interpolation settles, then stops scheduling frames. Cursors hide after six seconds without movement, on explicit hide, and on local visibility changes. Resize rerenders using current viewport dimensions. Reduced-motion users receive immediate positions.
+
+## Phase 2 collaboration
+
+`Connection` validates transport identity, v1 presence and v2 capability/profile messages before delivering `SessionEvents.feature`. The content-level `Collaboration` controller connects pure `NoteStore` / `LaserSampler` logic to the isolated `Toolbar`, `Effects` and `NoteView`. Networking has no rendering dependency. The existing cursor overlay remains separate.
+
+A UUIDv4 session ID comes from `crypto.getRandomValues`, which also works on non-secure HTTP pages; `crypto.randomUUID` is deliberately not required in content scripts. It survives a same-page Retry, changes on new activation, and is bound to one authenticated transport peer. Display-name changes increment a profile revision. Names never serve as identity keys. Color collision handling remains viewer-local, with one participant color shared across that viewer's roster/cursor/effects/notes.
+
+v2 messages use strict exact-field schemas: `participant`, `click`, `laser_start/move/end/clear`, `note_create/update/delete/sync`. Transient sequence numbers reject duplicate/reordered updates. Note revisions and tombstones handle duplicates independently. The handshake gates outgoing features; legacy v1 clients ignore v2 and continue cursor sharing.
+
+The pinned Trystero core creates `pc.createDataChannel("data")` with default reliable ordered delivery. Its public action API does not expose per-action unreliable channels. All features deliberately reuse that channel. Lasers batch at 100 ms, cap batches at 12 points and strokes at 120 points, and expire with no durable history. Clicks sample at 5 Hz. SVG effects are pointer-transparent, use animation frames only while active, and respect reduced motion. No image/canvas frames or native DOM actions cross the wire.
+
+Notes are author-owned monotonic registers keyed by authenticated session ID plus immutable note UUID. Higher revisions win; serialized-record lexical ordering resolves equal-revision live conflicts; deletion wins a tie and is permanent for that ID. Each author has 16 IDs including tombstones, each note at most 600 characters. Local changes use a capped serial send queue. New capable peers receive the owner's own live records/tombstones directly; forwarded third-party snapshots cannot spoof ownership. An author disconnect removes their records from receivers. Same-page Retry retains local authored records for resynchronization; leave/navigation discards all local notes.
+
+Anchors combine a bounded tag path, sibling indices/counts, child-tag shape and offset, without text, IDs, classes or attributes. Existing live node references track DOM moves. Detached targets resolve through the structural path; a narrowly scoped final-child fallback handles a unique shape after sibling insertion. Ambiguity or deletion yields an unplaced card. Replacement/scroll/layout fixtures are tested; identical structural reorderings are an acknowledged semantic limitation.
+
+`NoteView` observes local child-list and class/style/hidden invalidations, target/body resizing, window resizing and capture-phase scrolling. It coalesces positioning into one animation frame, hides offscreen cards, and disconnects observers/listeners on destruction. It never serializes mutation records or attribute values. No frame loop runs for stationary notes. The toolbar intercepts only its own controls; its drag grip uses pointer capture and viewport clamping. Arrow keys move it, Escape exits modes, and only page-lifetime module memory remembers its position. Forms/editables, custom/shadow elements and embedded contexts are excluded conservatively.
+
+See [security](SECURITY.md) for exact resource limits and [verification](VERIFICATION.md) for measured results. Bounded resources are implementation constraints, not latency/CPU guarantees.
 
 ## Build compatibility
 

@@ -1,0 +1,89 @@
+{
+  "version": "0.2.0",
+  "implementation": "665c2f2",
+  "totalBuildBytes": 219177,
+  "archiveBytes": 79958,
+  "archiveSha256": "7abb7a1893778d4f4c45d3f794b4661611fb63dde8eb8cd607408d8a42531e53",
+  "files": [
+    {
+      "path": "THIRD_PARTY_NOTICES.txt",
+      "bytes": 4749,
+      "gzipBytes": 971
+    },
+    {
+      "path": "assets/index-CTXSMjge.css",
+      "bytes": 4223,
+      "gzipBytes": 1519
+    },
+    {
+      "path": "assets/index.html-DQamRmXP.js",
+      "bytes": 4092,
+      "gzipBytes": 1817
+    },
+    {
+      "path": "assets/index.ts-CeIXefgW.js",
+      "bytes": 1497,
+      "gzipBytes": 855
+    },
+    {
+      "path": "assets/modulepreload-polyfill-P2Xu9kJm.js",
+      "bytes": 670,
+      "gzipBytes": 392
+    },
+    {
+      "path": "assets/offscreen-CO_fwoQ-.js",
+      "bytes": 155203,
+      "gzipBytes": 54961
+    },
+    {
+      "path": "assets/security--qpAlVbb.js",
+      "bytes": 1599,
+      "gzipBytes": 876
+    },
+    {
+      "path": "assets/types-3AjHEmuc.js",
+      "bytes": 67,
+      "gzipBytes": 87
+    },
+    {
+      "path": "content.js",
+      "bytes": 41068,
+      "gzipBytes": 13236
+    },
+    {
+      "path": "icons/128.png",
+      "bytes": 527,
+      "gzipBytes": 390
+    },
+    {
+      "path": "icons/16.png",
+      "bytes": 112,
+      "gzipBytes": 128
+    },
+    {
+      "path": "icons/48.png",
+      "bytes": 195,
+      "gzipBytes": 199
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 681,
+      "gzipBytes": 382
+    },
+    {
+      "path": "service-worker-loader.js",
+      "bytes": 40,
+      "gzipBytes": 60
+    },
+    {
+      "path": "src/networking/offscreen.html",
+      "bytes": 413,
+      "gzipBytes": 251
+    },
+    {
+      "path": "src/popup/index.html",
+      "bytes": 4041,
+      "gzipBytes": 1455
+    }
+  ]
+}

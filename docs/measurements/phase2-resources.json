@@ -1,0 +1,20 @@
+{
+  "scope": "Chromium page renderer; includes page and extension, not offscreen transport",
+  "baseline": {
+    "documents": 1,
+    "nodes": 108,
+    "jsEventListeners": 0
+  },
+  "activeResources": {
+    "documents": 1,
+    "nodes": 183,
+    "jsEventListeners": 55
+  },
+  "cleanedResources": {
+    "documents": 1,
+    "nodes": 112,
+    "jsEventListeners": 26
+  },
+  "activeHeap": 3199192,
+  "cleanedHeap": 3198744
+}

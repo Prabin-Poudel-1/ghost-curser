@@ -2,73 +2,92 @@
 
 **Browse together. Point anywhere.**
 
-A working Manifest V3 extension for private, peer-to-peer live cursors. Phase 1 includes secure invitations, named and colored cursors, presence, interpolation, idle hiding, a charcoal popup, retry, and immediate local leave. Click effects, drawing, notes, Firefox packaging, and the public website are intentionally reserved for later phases.
+A Manifest V3 Chromium extension for private, peer-to-peer cursors and annotations. **Phase 2 is implemented:** click ripples, temporary lasers, element-anchored sticky notes, late-join synchronization, a floating collaboration toolbar, and editable display names. Networking remains in an extension-owned offscreen document, independent of the popup and service worker.
+
+![Live annotations and toolbar](docs/images/phase2-notes.png)
 
 ## Run
 
-Use Node **22.12+** (24 LTS recommended) and npm. Dependencies are pinned in the lockfile.
+Use Node **22.12+** and npm. Dependencies are pinned; Phase 2 adds no runtime dependencies.
 
 ```sh
 npm ci
-npm run dev         # build both extension bundles in watch mode
-npm run build       # clean production build → dist/
-npm run check       # strict TypeScript, ESLint, unit tests, production build
+npm run dev          # Vite + CRXJS watch builds
+npm run build        # clean production build → dist/
+npm run check        # strict TypeScript, ESLint, unit tests, production build
 npm run format:check
 npx playwright install chromium
-npm run test:e2e    # builds production + isolated local-test variants, runs real Chromium/WebRTC
+npm run test:e2e      # production + isolated test builds; genuine local WebRTC
+npm audit
 ```
 
-The watch build uses Vite + CRXJS, with a separate Vite IIFE for programmatic content injection. Reload the extension and the test page after source changes. No development server or remote executable code is required. Never install `dist-test/` for normal browsing.
+Reload the extension and webpage after rebuilding. The development command builds files without a remote script server. Never install `dist-test/` for ordinary browsing.
 
-## Install unpacked in Chrome or Edge
+## Install in Chrome or Edge
 
-1. Run `npm ci` and `npm run build` (or use the supplied `dist/` build). If using the packaged ZIP, extract it first and select the extracted folder containing `manifest.json` instead of `dist/`.
-2. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
-3. Enable **Developer mode**, choose **Load unpacked**, and select this project's **dist** directory.
-4. Pin GhostCursor to the toolbar. Open a regular HTTP(S) webpage and click its toolbar icon.
-5. Enter a display name, choose a color, and click **Create a private room**. Copy the full `gc1_…` invitation and share it privately.
+1. Build with `npm ci` and `npm run build`, or extract **ghostcursor-0.2.0-chromium.zip**.
+2. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
+3. Choose **Load unpacked**, then select `dist/` or the extracted folder containing `manifest.json`.
+4. Pin GhostCursor, open a regular HTTP(S) page, and click the extension icon.
+5. Choose a name and color. **Create a private room**, then privately share the full `gc1_…` invitation. Another profile opens the same origin/path and uses **Join**.
 
-The Chromium manifest requires version 127+. Automated verification uses the bundled Playwright Chromium version listed in [verification](docs/VERIFICATION.md). Edge and Brave manual verification remains necessary; Firefox needs its own lifecycle adapter and manifest.
+The manifest minimum is Chromium 127. Automated tests use the exact newer Chromium version in the [test report](docs/VERIFICATION.md). Edge/Brave need manual verification; Firefox needs a separate implementation. This ZIP is a production build for unpacked installation, not a store-signed release.
 
-## Test with two profiles
+## Collaborate
 
-1. Create two separate browser profiles, or use two independently launched Chromium browsers. Install `dist/` in both. Two tabs in one profile do not create independent users.
-2. Open the **same origin and pathname** in both profiles. For example, both visit `https://example.com/`.
-3. In profile A, open the toolbar popup, enter `Ada`, and create a room. Send its invitation to profile B through a private channel.
-4. In profile B, open the toolbar popup, enter `Bea`, paste the invitation, and click **Join**.
-5. Both popups should say **Connected** and show both names. Close the popups and move each pointer over the page. The other profile should show a labeled cursor.
-6. Resize one window: positions map to the same fraction of each viewport. Leave the pointer still for six seconds: its remote cursor hides.
-7. Open either popup and **Leave room**. That page's overlay is removed immediately; the remote participant disappears on the leave event, or after the presence timeout if the network is lost.
-8. Refreshing, closing, or navigating away ends that page's session. Rejoin explicitly with the saved invitation. Use **Retry connection** after a recoverable discovery/connection failure.
+| Control             | Behavior                                                                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Navigate            | Share cursors and visual click ripples; the webpage works normally.                                                          |
+| Laser               | Hold the primary pointer button and move. Trails fade after about three seconds; native scrolling and clicks remain enabled. |
+| Sticky note         | Select a safe webpage element, type a plain-text comment, and choose **Share note**. Hover + Enter also selects.             |
+| Edit / Delete       | Available on your own notes. Changes synchronize to connected peers.                                                         |
+| Clear drawings      | Clears all temporary effects locally and your own effects remotely. Other authors retain control of their drawings.          |
+| Hide / Show cursors | A local visibility preference; annotations remain visible.                                                                   |
+| Move toolbar        | Drag the grip, or focus it and use arrow keys. Position is remembered for this page's lifetime.                              |
+| Escape              | Return to Navigate and cancel an unfinished new note.                                                                        |
+| Leave               | Remove local overlays, observers, drawing timers and participation immediately.                                              |
 
-A lone room creator is **Connecting**, not Connected. After 30 seconds without a peer, the popup explains possible causes; discovery can still succeed later. Check matching paths, invitation, connectivity, and firewall restrictions. No TURN relay is configured, so direct WebRTC is not guaranteed across all networks.
+Reopen the popup to update your display name, copy the invitation, retry a connection, or leave. Names are labels; session-specific random IDs distinguish people with identical names. Each viewer consistently uses its assigned participant color for cursor, ripple, laser and note. Phase 1's local color-collision resolution is retained, so colors can differ between viewers.
+
+Notes are **session-only and author-owned**. Each author may create 16 immutable note IDs per session, including deleted IDs retained as tombstones. Notes have a 600-character limit. Owners send their notes to late joiners. Remote notes disappear when their author disconnects; an owner who retries from the same active page restores their retained notes. Leaving, refreshing or navigating away discards that page's notes. There is no cloud database or persistent note history.
+
+## Test with two independent profiles
+
+Install the production extension in two separate profiles. Open the same webpage in both, create a room in A, and join from B. Close both popups: cursors and annotations must continue. Click a safe page area, draw with Laser, create/edit/delete a note, and verify the other profile receives each change. Create a note before B joins to check late synchronization. Scroll and replace its target, try 1000- and 1200-pixel windows, then leave from the toolbar.
+
+The [manual test guide](docs/MANUAL_TESTING.md) provides a reusable local webpage, detailed steps and expected results. The [verification report](docs/VERIFICATION.md) separates actual WebRTC tests from simulated unit tests and lists measured resource counts.
+
+A lone creator is **Connecting**. After 30 seconds without a peer, the popup explains possible causes; discovery can still succeed later. Check the invitation, matching paths, relays and firewall. No TURN service is configured; direct connectivity across restrictive NATs is not guaranteed. Public-relay connectivity across separate external networks has not been verified.
 
 ## Privacy and permissions
 
-Nothing activates until Create or Join. Production permissions are only `activeTab`, `scripting`, and `offscreen`; there are no persistent host grants, automatic content scripts, storage, history, cookies, clipboard-read, or capture permissions.
+Create/Join is explicit activation. Production permissions remain only `activeTab`, `scripting` and `offscreen`. There are no persistent host grants, automatic content scripts, storage/history/cookies/capture permissions, analytics or remote executable scripts.
 
-Cursor coordinates, chosen display names, color preferences, ephemeral peer identities, and presence travel over encrypted WebRTC DataChannels. Signaling uses public Nostr infrastructure, with a 256-bit invitation used as the shared password and an HMAC-derived page topic. Raw webpage URLs are not sent to signaling. WebSockets originate in the extension's offscreen document so their Origin headers do not expose the page origin. Public relays and STUN services still observe network metadata, including IP addresses. Direct peers can learn each other's network addresses.
+Encrypted WebRTC carries coordinates, intentional note text, minimal structural anchors, chosen names/colors, session IDs and presence. Public Nostr relays handle encrypted connection signaling and metadata; they do not receive raw URLs or intentional application payloads. The 256-bit invitation keys an HMAC page topic. Offscreen signaling uses the extension origin, avoiding the webpage origin in WebSocket headers. Relays/STUN and direct peers can observe network metadata, including IP addresses.
 
-GhostCursor does not read or transmit form contents, typed webpage text, passwords, screenshots, cookies, auth tokens, or browsing history. Display names are explicitly entered in the extension. See [security and privacy](docs/SECURITY.md) for trust boundaries and limitations.
+GhostCursor does not read or transmit page form values, password contents, typed webpage text, screenshots, cookies, account identifiers or browsing history. Form/editable regions, custom/shadow components and embedded documents are excluded from pointer/annotation capture. It reads only Escape/Enter for tool controls, never streams keystrokes. Only the note editor and name fields deliberately collect the text you choose to share. The [security document](docs/SECURITY.md) explains bounds and trust assumptions.
 
-## Limits
+## Known limits
 
-- One activated tab per browser profile; at most eight participants in a room. Colors resolve collisions locally, so a peer's displayed color can differ between viewers.
-- Positions are viewport-relative, not attached to webpage elements. Different scroll positions, zoom, layouts, device sizes, content, or responsive breakpoints can place pointers over different elements. Pinch zoom and nested frames are not synchronized.
-- Query strings, fragments, and URL credentials are excluded from page matching. Query-driven pages can therefore match even when their content differs. Matching paths are case-sensitive; a trailing slash matters. SPA pathname changes end the session within roughly 500 ms.
-- Browser pages, extension pages, browser stores, built-in PDF viewers, local files, and subframes are unsupported. Host pages can inspect or remove the shared DOM overlay; Shadow DOM provides CSS isolation, not a security boundary.
-- No persistent rooms, host account, ownership, member removal, or global invitation revocation. Whoever knows a code can join; names are unverified. Leaving disconnects you, not other members. Use a new invitation if one leaks.
-- Public signaling can fail or be rate-limited. No TURN, delivery SLA, internet-wide reliability guarantee, or independent security audit. Background tab throttling or browser suspension can delay presence timers.
-- Performance bounds are implementation targets, not a hardware benchmark. Tests distinguish simulated unit transports from real local WebRTC.
+- One active tab per profile; at most eight participants. An invitation is a bearer secret. Names are unverified; there are no room-admin roles, bans or global revocation. Leaving cannot erase information other members already received.
+- Cursors, clicks and lasers use normalized **viewport** coordinates. Different scroll positions, layouts, zoom or breakpoints can point to different content. No scrolling, clicks or other DOM actions are executed remotely.
+- Notes use bounded tag paths, sibling counts, child-tag fingerprints and geometry, never page text, IDs, classes or private attributes. Replacement nodes can resolve; ambiguous changes become **unplaced notes**. Identical structural reordering or different personalized page content cannot always be detected. There is no semantic matching guarantee or reattachment UI yet.
+- Forms, contenteditable areas, custom elements, shadow trees, iframes, browser pages, extension pages, stores, built-in PDF viewers and local files are unsupported annotation targets. The current note card layout can overlap on crowded targets.
+- Annotation tools preserve native page actions. Clicking a link may navigate away and end participation; use hover + Enter for note selection without a click. Touch scrolling may cancel a laser stroke. Long strokes stop accepting points at the safety limit; release and start another.
+- Query strings, fragments and credentials are excluded from page matching. Query-driven pages may match despite different content; paths are case-sensitive and trailing slashes matter. SPA pathname changes end the session within about 500 ms.
+- Shadow DOM isolates styling, not confidentiality. A hostile webpage can inspect or remove overlay text, including notes/drafts. Use trusted pages for sensitive discussions.
+- All current Trystero application messages share its reliable ordered DataChannel. Laser batches are bounded, but congestion can delay transient feedback. Annotation features require v2 peers; older Phase 1 peers still share cursors.
+- No cross-network, eight-peer load, broad website, browser-version or external security audit claim. Background throttling can delay timers. Measured bundle/resource snapshots are not a general performance guarantee.
 
 ## Project map
 
-- `src/background/`: permission-gated injection and offscreen creation; no networking state.
-- `src/content/`: event capture and isolated, pointer-transparent SVG cursor overlay.
-- `src/networking/`: session state machine, validated protocol, extension transport bridge, and Trystero offscreen host.
-- `src/popup/`: accessible vanilla TypeScript UI.
-- `src/shared/`: invitation security, constants, types.
-- `tests/unit/`: security, schema, coordinates, presence/recovery, rendering, popup states.
-- `tests/e2e/`: independent extension profiles, real RTCDataChannels, local Nostr signaling fixture.
+- `src/background/`: permission-gated injection and offscreen setup.
+- `src/content/`: page input, isolated SVG cursors, toolbar, effects and note views.
+- `src/collaboration/`: rendering-independent bounded note store and laser sampler.
+- `src/networking/`: v1/v2 validators, session state, transport bridge, Trystero host.
+- `src/popup/`: vanilla TypeScript popup, invitations, presence and name editing.
+- `tests/unit/`: protocol, security, state, anchoring, rendering and cleanup tests.
+- `tests/e2e/`: independent Chromium profiles and local Nostr fixture using genuine WebRTC.
+- `tests/fixtures/collaboration.html`: reusable responsive test page.
 
-Read [architecture](docs/ARCHITECTURE.md), [verification](docs/VERIFICATION.md), and the [Phase 2–4 plan](docs/ROADMAP.md). No site, store listing, deployment, or remote repository has been published.
+See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [verification](docs/VERIFICATION.md), and [roadmap](docs/ROADMAP.md). Phase 3 and Phase 4 remain planned. No site, store listing, main merge or deployment was performed.
