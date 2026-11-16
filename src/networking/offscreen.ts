@@ -1,6 +1,6 @@
 import { createTransport } from './room';
 import type { Transport } from './transport';
-import { decodeMessage } from './protocol';
+import { decodeWireMessage } from './collaboration-protocol';
 import { parseInvitation, supportedUrl, roomTopic } from '../shared/security';
 interface Active {
   port: chrome.runtime.Port;
@@ -107,7 +107,7 @@ chrome.runtime.onConnect.addListener((port) => {
       m.type === 'send' &&
       transport &&
       Number.isSafeInteger(m.id) &&
-      decodeMessage(m.raw) &&
+      decodeWireMessage(m.raw) &&
       (m.target === undefined || typeof m.target === 'string')
     ) {
       void transport

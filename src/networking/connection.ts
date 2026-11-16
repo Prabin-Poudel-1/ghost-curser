@@ -1,3 +1,4 @@
+import { randomId } from '../shared/security';
 import {
   CONNECT_TIMEOUT_MS,
   HEARTBEAT_MS,
@@ -5,14 +6,19 @@ import {
   PEER_TIMEOUT_MS,
   COLORS,
 } from '../shared/constants';
-import { parseInvitation, pageIdentity } from '../shared/security';
+import { parseInvitation, pageIdentity, validName } from '../shared/security';
 import {
   emptyState,
   type Participant,
   type Point,
   type SessionState,
 } from '../shared/types';
-import { decodeMessage, encodeMessage, type Message } from './protocol';
+import { encodeMessage, type Message } from './protocol';
+import {
+  decodeWireMessage,
+  decodeFeature,
+  type FeatureMessage,
+} from './collaboration-protocol';
 import type { Transport, TransportFactory } from './transport';
 interface Peer {
   participant?: Participant;
@@ -20,12 +26,15 @@ interface Peer {
   seq: number;
   window: number;
   count: number;
+  profileRev: number;
+  featureSeq: number;
 }
 export interface SessionEvents {
   state(state: SessionState): void;
   cursor(id: string, point: Point, participant: Participant): void;
   hide(id: string): void;
   remove(id: string): void;
+  feature?(message: FeatureMessage, participant: Participant): void;
 }
 export class Connection {
   private state: SessionState = emptyState();
@@ -38,6 +47,7 @@ export class Connection {
   private sequence = 0;
   private sending = false;
   private page = '';
+  private profileRevision = 0;
   constructor(
     private factory: TransportFactory,
     private events: SessionEvents,
@@ -57,15 +67,23 @@ export class Connection {
     name: string,
     color: number,
     url: string,
+    preserveIdentity = false,
   ): Promise<void> {
     parseInvitation(invitation);
+    const sessionId = preserveIdentity ? this.state.self?.sessionId : undefined;
+    if (!preserveIdentity) this.profileRevision = 0;
     const generation = ++this.generation;
     const closing = this.dispose();
     this.page = pageIdentity(url);
     this.state = {
       status: 'connecting',
       invitation,
-      self: { id: 'self', name, color },
+      self: {
+        id: 'self',
+        name,
+        color,
+        sessionId: sessionId ?? randomId(),
+      },
       participants: [],
     };
     this.started = this.now();
@@ -103,6 +121,8 @@ export class Connection {
       seq: -1,
       window: this.now(),
       count: 0,
+      profileRev: -1,
+      featureSeq: -1,
     });
     this.hello(id);
   }
@@ -110,10 +130,22 @@ export class Connection {
     const self = this.state.self;
     if (self)
       this.send({ v: 1, t: 'hello', name: self.name, color: self.color }, id);
+    if (self?.sessionId)
+      this.send(
+        {
+          v: 2,
+          t: 'participant',
+          sid: self.sessionId,
+          rev: this.profileRevision,
+          name: self.name,
+          color: self.color,
+        },
+        id,
+      );
   }
-  private send(message: Message, target?: string) {
+  private send(message: Message | FeatureMessage, target?: string) {
     const generation = this.generation;
-    void this.transport?.send(encodeMessage(message), target).catch(() => {
+    void this.transport?.send(JSON.stringify(message), target).catch(() => {
       if (generation === this.generation)
         this.fail(
           'A peer connection was interrupted. Discovery continues; retry if it does not recover.',
@@ -129,9 +161,44 @@ export class Connection {
       peer.count = 0;
     }
     if (++peer.count > 60) return;
-    const message = decodeMessage(raw);
+    const message = decodeWireMessage(raw);
     if (!message) return;
     peer.seen = now;
+    if (message.v === 2) {
+      if (!peer.participant) return;
+      if (message.t === 'participant') {
+        if (
+          message.sid === this.state.self?.sessionId ||
+          [...this.peers.values()].some(
+            (p) => p !== peer && p.participant?.sessionId === message.sid,
+          )
+        )
+          return;
+        if (
+          peer.participant.sessionId &&
+          peer.participant.sessionId !== message.sid
+        )
+          return;
+        if (peer.participant.sessionId && message.rev <= peer.profileRev)
+          return;
+        peer.profileRev = message.rev;
+        peer.participant = {
+          ...peer.participant,
+          sessionId: message.sid,
+          name: message.name,
+        };
+        this.emit();
+        this.events.feature?.(message, peer.participant);
+        return;
+      }
+      if (!peer.participant.sessionId) return;
+      if ('seq' in message) {
+        if (message.seq <= peer.featureSeq) return;
+        peer.featureSeq = message.seq;
+      }
+      this.events.feature?.(message, peer.participant);
+      return;
+    }
     if (message.t === 'bye') {
       this.remove(id);
       return;
@@ -231,13 +298,35 @@ export class Connection {
         if (generation === this.generation) this.sending = false;
       });
   }
+  rename(name: string) {
+    if (!validName(name) || !this.state.self) return;
+    this.state.self = { ...this.state.self, name };
+    this.profileRevision++;
+    this.hello();
+    this.emit();
+  }
+  async sendFeature(message: FeatureMessage, target?: string): Promise<void> {
+    if (!decodeFeature(JSON.stringify(message)))
+      throw new Error('Invalid collaboration message');
+    const transport = this.transport;
+    if (!transport) return;
+    const recipients = [...this.peers]
+      .filter(
+        ([id, peer]) =>
+          peer.participant?.sessionId && (!target || id === target),
+      )
+      .map(([id]) => id);
+    await Promise.all(
+      recipients.map((id) => transport.send(JSON.stringify(message), id)),
+    );
+  }
   hide() {
     this.send({ v: 1, t: 'hide' });
   }
   async retry() {
     const { invitation, self } = this.state;
     if (invitation && self)
-      await this.start(invitation, self.name, self.color, this.page);
+      await this.start(invitation, self.name, self.color, this.page, true);
   }
   leave() {
     this.send({ v: 1, t: 'bye' });

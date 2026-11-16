@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>GhostCursor test page</title>
+    <style>
+      body {
+        font: 18px system-ui;
+        background: #f4f1e9;
+        padding: 60px;
+        color: #252531;
+      }
+      main {
+        max-width: 800px;
+      }
+      h1 {
+        font-size: 48px;
+      }
+      button {
+        padding: 16px;
+      }
+      article {
+        height: 1600px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>GHOSTCURSOR / TEST FIXTURE</p>
+      <h1>A place to point together.</h1>
+      <p>Real browser instances. Real WebRTC. Local signaling.</p>
+      <button id="page-button">A normal page button</button
+      ><input type="password" value="NEVER_TRANSMIT_PASSWORD" />
+      <section id="review-section" style="margin-top: 80px">
+        <h2>Review the details</h2>
+        <div
+          class="cards"
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+          "
+        >
+          <article
+            id="review-card"
+            style="
+              height: auto;
+              background: #fff;
+              border: 1px solid #ded9d0;
+              border-radius: 16px;
+              padding: 24px;
+            "
+          >
+            <h3>A quieter workspace</h3>
+            <p>A card that can be replaced without losing its annotation.</p>
+            <button id="review-button"><span>Review card</span></button>
+          </article>
+          <article
+            style="
+              height: auto;
+              background: #e9e3f6;
+              border-radius: 16px;
+              padding: 24px;
+            "
+          >
+            <h3>A little more space</h3>
+            <p>Flexible layouts, ordinary browser interactions.</p>
+            <a href="#review-section">Read the detail</a>
+          </article>
+        </div>
+      </section>
+      <form style="margin-top: 40px">
+        <h2>Private form</h2>
+        <label
+          >Email
+          <input type="email" value="PRIVATE_EMAIL@example.test" /></label
+        ><label
+          >Password
+          <input
+            id="sensitive-password"
+            type="password"
+            value="NEVER_TRANSMIT_PASSWORD" /></label
+        ><textarea>PRIVATE_FORM_TEXT</textarea>
+      </form>
+      <section
+        style="
+          margin-top: 40px;
+          height: 170px;
+          overflow: auto;
+          border: 1px solid #ccc;
+          padding: 20px;
+        "
+      >
+        <p>Nested scrolling stays native.</p>
+        <div style="height: 400px"></div>
+        <button>Lower section action</button>
+      </section>
+      <article></article>
+    </main>
+  </body>
+</html>

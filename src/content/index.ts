@@ -5,6 +5,8 @@ import { CURSOR_INTERVAL_MS } from '../shared/constants';
 import { pageIdentity, validCommand } from '../shared/security';
 import type { Response } from '../shared/types';
 import { CursorOverlay } from './overlay';
+import { Collaboration } from './collaboration';
+import { sensitiveTarget } from './collaboration/anchors';
 // The guard lives in Chrome's isolated world, never on the webpage's window.
 const scope = globalThis as typeof globalThis & {
   __ghostcursorInstalled?: boolean;
@@ -12,22 +14,30 @@ const scope = globalThis as typeof globalThis & {
 if (!scope.__ghostcursorInstalled) {
   scope.__ghostcursorInstalled = true;
   let overlay: CursorOverlay | undefined;
+  let collaboration: Collaboration | undefined;
   let active: AbortController | undefined;
   let pageCheck: ReturnType<typeof setInterval> | undefined;
   let lastMove = 0;
   const connection = new Connection(createTransport, {
-    state: () => {},
+    state: (state) => collaboration?.state(state),
+    feature: (message, participant) =>
+      collaboration?.receive(message, participant),
     cursor: (id, point, participant) => {
       if (!document.hidden) overlay?.move(id, point, participant);
     },
     hide: (id) => overlay?.hide(id),
-    remove: (id) => overlay?.remove(id),
+    remove: (id) => {
+      overlay?.remove(id);
+      collaboration?.remove(id);
+    },
   });
   function cleanup() {
     active?.abort();
     active = undefined;
     clearInterval(pageCheck);
     pageCheck = undefined;
+    collaboration?.destroy();
+    collaboration = undefined;
     overlay?.destroy();
     overlay = undefined;
   }
@@ -40,6 +50,7 @@ if (!scope.__ghostcursorInstalled) {
     cleanup();
     active = new AbortController();
     overlay = new CursorOverlay();
+    collaboration = new Collaboration(connection, overlay, leave);
     const options = { signal: active.signal, passive: true };
     const identity = pageIdentity(location.href);
     // Catch SPA path changes too; query and fragment changes intentionally do not change rooms.
@@ -50,7 +61,9 @@ if (!scope.__ghostcursorInstalled) {
       'pointermove',
       (event) => {
         if (
+          !event.isTrusted ||
           document.hidden ||
+          sensitiveTarget(event.target) ||
           performance.now() - lastMove < CURSOR_INTERVAL_MS
         )
           return;
@@ -116,6 +129,7 @@ if (!scope.__ghostcursorInstalled) {
               location.href,
             );
           }
+          if (message.type === 'rename') connection.rename(message.name);
           if (message.type === 'retry') await connection.retry();
           respond({ ok: true, state: connection.snapshot() });
         })

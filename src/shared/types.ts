@@ -6,6 +6,7 @@ export interface Participant {
   id: string;
   name: string;
   color: number;
+  sessionId?: string;
 }
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 export interface SessionState {
@@ -23,6 +24,7 @@ export type Command =
   | { type: 'state' }
   | { type: 'leave' }
   | { type: 'retry' }
+  | { type: 'rename'; name: string }
   | { type: 'start'; invitation: string; name: string; color: number };
 export type Response =
   { ok: true; state: SessionState } | { ok: false; error: string };

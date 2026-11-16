@@ -22,7 +22,7 @@
           <h1>GhostCursor</h1>
           <p class="tagline">Browse together. Point anywhere.</p>
         </div>
-        <span class="version">01</span>
+        <span class="version">02</span>
       </header>
       <div class="status-line">
         <span id="status" role="status" aria-live="polite">Disconnected</span
@@ -79,6 +79,15 @@
           <span id="count"></span>
         </div>
         <ul id="participants" aria-label="Participants"></ul>
+        <label for="session-name">Your display name</label>
+        <div class="join-row">
+          <input id="session-name" maxlength="24" autocomplete="off" /><button
+            id="rename"
+            class="secondary"
+          >
+            Update
+          </button>
+        </div>
         <button id="retry" class="secondary full">Retry connection</button
         ><button id="leave" class="leave full">
           Leave room <span aria-hidden="true">↗</span>
@@ -87,7 +96,7 @@
       <footer>
         <span class="shield" aria-hidden="true">◇</span>
         <p>
-          Cursors, names & presence are shared.<br />Public relays handle
+          Cursors, annotations & names are shared.<br />Public relays handle
           connection metadata. <span>No screen sharing.</span>
         </p>
       </footer>

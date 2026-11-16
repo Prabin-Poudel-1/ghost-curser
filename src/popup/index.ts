@@ -39,6 +39,8 @@ async function request(command: Command) {
 }
 function render() {
   renderState(document, state);
+  const name = find<HTMLInputElement>('session-name');
+  if (document.activeElement !== name) name.value = state.self?.name ?? '';
   if (localError) error(localError);
 }
 async function act(command: Command) {
@@ -112,6 +114,14 @@ find('join-code').addEventListener('keydown', (event) => {
 });
 find('leave').addEventListener('click', () => void act({ type: 'leave' }));
 find('retry').addEventListener('click', () => void act({ type: 'retry' }));
+find('rename').addEventListener('click', () => {
+  const name = find<HTMLInputElement>('session-name').value.trim();
+  if (!validName(name)) {
+    error('Use a name of 1–24 characters without control characters.');
+    return;
+  }
+  void act({ type: 'rename', name });
+});
 find('copy').addEventListener('click', () => {
   if (!state.invitation) return;
   void navigator.clipboard

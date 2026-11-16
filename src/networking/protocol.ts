@@ -56,16 +56,3 @@ export function normalize(
     Math.round(Math.min(1, Math.max(0, n)) * 10000) / 10000;
   return { x: clamp(x / width), y: clamp(y / height) };
 }
-// Future protocols must negotiate a new version; v1 rejects annotations.
-export interface DomAnchor {
-  version: 1;
-  stableId?: string;
-  role?: string;
-  textQuote?: { exact: string; prefix: string; suffix: string };
-  ancestorFingerprint?: string[];
-  normalizedBounds?: { x: number; y: number; width: number; height: number };
-}
-export interface AnnotationCapability {
-  kind: 'click' | 'laser' | 'note';
-  protocolVersion: 2;
-}

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import {
   generateInvitation,
+  randomId,
   parseInvitation,
   roomTopic,
   pageIdentity,
@@ -85,5 +86,18 @@ describe('activation boundary', () => {
       }),
     ).toBe(false);
     expect(validName('invisible\u202e')).toBe(false);
+  });
+});
+
+describe('session random IDs', () => {
+  it('uses secure random bytes with valid UUIDv4 bits without requiring randomUUID', () => {
+    const spy = vi.spyOn(crypto, 'getRandomValues');
+    spy.mockClear();
+    const value = randomId();
+    expect(value).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(spy.mock.calls[0]?.[0]?.byteLength).toBe(16);
+    expect(new Set(Array.from({ length: 100 }, randomId)).size).toBe(100);
   });
 });

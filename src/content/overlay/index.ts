@@ -58,6 +58,11 @@ export class CursorOverlay {
       };
       this.cursors.set(id, cursor);
     }
+    cursor.element.style.setProperty(
+      '--color',
+      COLORS[participant.color] ?? COLORS[0],
+    );
+    cursor.element.querySelector('.label')!.textContent = participant.name;
     cursor.target = { ...point };
     cursor.visible = true;
     cursor.element.hidden = false;
@@ -86,6 +91,13 @@ export class CursorOverlay {
       moving ||= !settled;
     }
     if (moving) this.schedule();
+  }
+  setVisible(visible: boolean) {
+    this.host.style.setProperty(
+      'visibility',
+      visible ? 'visible' : 'hidden',
+      'important',
+    );
   }
   resize() {
     this.schedule();

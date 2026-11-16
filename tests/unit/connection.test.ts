@@ -14,6 +14,7 @@ describe('presence and lifecycle (simulated transport)', () => {
     cursor: vi.fn(),
     hide: vi.fn(),
     remove: vi.fn(),
+    feature: vi.fn(),
   };
   const factory = vi.fn(
     (_topic: string, _secret: string, h: TransportHandlers) => {
@@ -147,5 +148,67 @@ describe('presence and lifecycle (simulated transport)', () => {
     expect(events.hide).toHaveBeenCalledWith('peer');
     handlers.message(encodeMessage({ v: 1, t: 'bye' }), 'peer');
     expect(session.snapshot().participants).toHaveLength(0);
+  });
+  it('requires v2 capability before annotations and binds a session ID to its transport', async () => {
+    handlers.join('peer');
+    hello();
+    await session.sendFeature({ v: 2, t: 'click', seq: 1, x: 0, y: 0 });
+    const before = send.mock.calls.length;
+    const sid = '11111111-1111-4111-8111-111111111111';
+    handlers.message(
+      JSON.stringify({
+        v: 2,
+        t: 'participant',
+        sid,
+        rev: 0,
+        name: 'Bea',
+        color: 0,
+      }),
+      'peer',
+    );
+    expect(session.snapshot().participants[0]?.sessionId).toBe(sid);
+    await session.sendFeature({ v: 2, t: 'click', seq: 1, x: 0, y: 0 });
+    expect(send.mock.calls.length).toBe(before + 1);
+    handlers.message(
+      JSON.stringify({
+        v: 2,
+        t: 'participant',
+        sid: '22222222-2222-4222-8222-222222222222',
+        rev: 1,
+        name: 'Spoof',
+        color: 0,
+      }),
+      'peer',
+    );
+    expect(session.snapshot().participants[0]?.name).toBe('Bea');
+  });
+  it('deduplicates transient sequences and preserves assigned colors across feature messages', () => {
+    handlers.join('peer');
+    hello();
+    handlers.message(
+      JSON.stringify({
+        v: 2,
+        t: 'participant',
+        sid: '11111111-1111-4111-8111-111111111111',
+        rev: 0,
+        name: 'Bea',
+        color: 0,
+      }),
+      'peer',
+    );
+    events.feature.mockClear();
+    for (const seq of [2, 2, 1])
+      handlers.message(
+        JSON.stringify({ v: 2, t: 'click', seq, x: 0.2, y: 0.3 }),
+        'peer',
+      );
+    expect(events.feature).toHaveBeenCalledTimes(1);
+    expect(events.feature.mock.calls[0]?.[1].color).toBe(1);
+  });
+  it('updates names without changing active session identity', () => {
+    const sid = session.snapshot().self?.sessionId;
+    session.rename('Ada renamed');
+    expect(session.snapshot().self?.name).toBe('Ada renamed');
+    expect(session.snapshot().self?.sessionId).toBe(sid);
   });
 });

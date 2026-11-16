@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 interface Event {
@@ -26,7 +27,10 @@ export async function startFixture() {
       "default-src 'self'; style-src 'unsafe-inline'; script-src 'none'",
     );
     res.end(
-      `<!doctype html><html><head><title>GhostCursor test page</title><style>body{font:18px system-ui;background:#f4f1e9;padding:60px;color:#252531}main{max-width:800px}h1{font-size:48px}button{padding:16px}article{height:1600px}</style></head><body><main><p>GHOSTCURSOR / TEST FIXTURE</p><h1>A place to point together.</h1><p>Real browser instances. Real WebRTC. Local signaling.</p><button id="page-button">A normal page button</button><input type="password" value="NEVER_TRANSMIT_PASSWORD"><article></article></main></body></html>`,
+      readFileSync(
+        new URL('../fixtures/collaboration.html', import.meta.url),
+        'utf8',
+      ),
     );
   });
   const relay = new WebSocketServer({ host: '127.0.0.1', port: 8787 });

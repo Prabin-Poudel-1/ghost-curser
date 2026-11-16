@@ -1,6 +1,6 @@
 import { joinRoom } from 'trystero';
 import { MAX_PARTICIPANTS } from '../shared/constants';
-import { MAX_MESSAGE_BYTES } from './protocol';
+import { FEATURE_MAX_BYTES } from './collaboration-protocol';
 import type { RoomTransportFactory } from './transport';
 export const createTransport: RoomTransportFactory = (
   topic,
@@ -13,7 +13,7 @@ export const createTransport: RoomTransportFactory = (
       password: secret,
       identity: 'none',
       maxUsers: MAX_PARTICIPANTS,
-      // Trystero identity handshakes exceed the 512-byte application budget.
+      // Keep space for identity handshakes; individual app actions are capped at 4 KiB.
       maxReceiveBytes: 16 * 1024,
       relayConfig: {
         warnOnRelayFailure: false,
@@ -24,7 +24,7 @@ export const createTransport: RoomTransportFactory = (
     topic,
   );
   const action = room.makeAction<string>('gc-v1');
-  action.onReceive(({ byteLength }) => byteLength <= MAX_MESSAGE_BYTES);
+  action.onReceive(({ byteLength }) => byteLength <= FEATURE_MAX_BYTES);
   const unsub = [
     action.onMessage((data, { peerId }) => handlers.message(data, peerId)),
     room.onPeerJoin(({ peerId }) => handlers.join(peerId)),
