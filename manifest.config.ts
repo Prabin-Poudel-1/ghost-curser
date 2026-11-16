@@ -3,7 +3,7 @@ export function manifest(test = false) {
   return defineManifest({
     manifest_version: 3,
     name: test ? 'GhostCursor • LOCAL TEST ONLY' : 'GhostCursor',
-    version: '0.2.0',
+    version: '0.3.0',
     description:
       'Browse together. Point anywhere. Private, peer-to-peer cursors, lasers and sticky notes.',
     minimum_chrome_version: '127',

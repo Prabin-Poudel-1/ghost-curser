@@ -1,18 +1,34 @@
 import { validColor, validName } from '../shared/security';
 import type { Point } from '../shared/types';
 export type Message =
+  | { v: 1; t: 'compat'; min: number; max: number }
   | { v: 1; t: 'hello'; name: string; color: number }
   | { v: 1; t: 'cursor'; seq: number; x: number; y: number }
   | { v: 1; t: 'hide' | 'beat' | 'bye' };
 export const MAX_MESSAGE_BYTES = 512;
 export function decodeMessage(raw: unknown): Message | null {
-  if (typeof raw !== 'string' || raw.length > MAX_MESSAGE_BYTES) return null;
+  if (
+    typeof raw !== 'string' ||
+    raw.length > MAX_MESSAGE_BYTES ||
+    new TextEncoder().encode(raw).byteLength > MAX_MESSAGE_BYTES
+  )
+    return null;
   try {
     const m: unknown = JSON.parse(raw);
     if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
     const d = m as Record<string, unknown>;
     if (d.v !== 1) return null;
     const keys = Object.keys(d).sort().join(',');
+    if (
+      d.t === 'compat' &&
+      keys === 'max,min,t,v' &&
+      Number.isInteger(d.min) &&
+      Number.isInteger(d.max) &&
+      Number(d.min) >= 1 &&
+      Number(d.max) <= 255 &&
+      Number(d.min) <= Number(d.max)
+    )
+      return d as Message;
     if (
       d.t === 'hello' &&
       keys === 'color,name,t,v' &&
@@ -29,7 +45,11 @@ export function decodeMessage(raw: unknown): Message | null {
       unit(d.y)
     )
       return d as Message;
-    if (['hide', 'beat', 'bye'].includes(String(d.t)) && keys === 't,v')
+    if (
+      typeof d.t === 'string' &&
+      ['hide', 'beat', 'bye'].includes(d.t) &&
+      keys === 't,v'
+    )
       return d as Message;
   } catch {
     /* Untrusted input is discarded. */

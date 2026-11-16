@@ -4,3 +4,7 @@ dist-test
 playwright-report
 test-results
 package-lock.json
+
+dist-firefox
+dist-firefox-test
+artifacts

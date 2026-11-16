@@ -1,8 +1,11 @@
 name: Check GhostCursor
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -12,5 +15,19 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run check
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox
       - run: npm run test:e2e
+      - run: npm run lint:firefox
+      - run: npm run validate:builds
+      - run: npm audit --omit=dev
+      # Full audit reports the known unpatched low-severity Mozilla-tooling issue.
+      # See docs/SECURITY.md. Moderate-or-higher advisories remain a failing gate.
+      - run: npm audit --audit-level=moderate
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-and-packages
+          path: |
+            test-results/
+            artifacts/

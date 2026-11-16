@@ -1,20 +1,34 @@
+import { api } from '../browser/api';
 import { createTransport } from './room';
 import type { Transport } from './transport';
 import { decodeWireMessage } from './collaboration-protocol';
-import { parseInvitation, supportedUrl, roomTopic } from '../shared/security';
+import {
+  parseInvitation,
+  supportedUrl,
+  roomTopic,
+  pageIdentity,
+} from '../shared/security';
 interface Active {
   port: chrome.runtime.Port;
   tabId: number;
   transport: Transport;
 }
 let active: Active | undefined;
+export const stopHost = () => {
+  if (!active) return;
+  active.port.postMessage({ type: 'revoked' });
+  void active.transport.close();
+  active.port.disconnect();
+  active = undefined;
+  document.dispatchEvent(new Event('ghostcursor-host-state'));
+};
 let opening = Promise.resolve();
 // One explicitly activated tab per profile. Separate profiles are independent peers.
-chrome.runtime.onConnect.addListener((port) => {
+api.runtime.onConnect.addListener((port) => {
   const sender = port.sender;
   if (
     port.name !== 'ghostcursor-transport-v1' ||
-    sender?.id !== chrome.runtime.id ||
+    sender?.id !== api.runtime.id ||
     sender.frameId !== 0 ||
     sender.tab?.id === undefined ||
     !sender.url ||
@@ -34,7 +48,10 @@ chrome.runtime.onConnect.addListener((port) => {
   };
   function close() {
     closed = true;
-    if (active?.port === port) active = undefined;
+    if (active?.port === port) {
+      active = undefined;
+      document.dispatchEvent(new Event('ghostcursor-host-state'));
+    }
     const previous = transport;
     transport = undefined;
     return previous?.close().catch(() => {});
@@ -50,7 +67,8 @@ chrome.runtime.onConnect.addListener((port) => {
     if (m.type === 'open' && !opened) {
       opened = true;
       if (typeof m.page !== 'string' || !supportedUrl(m.page)) return;
-      const page = m.page;
+      const page = pageIdentity(m.page);
+      if (page !== pageIdentity(sender.url!)) return;
       let secret: string;
       try {
         secret = parseInvitation(m.secret);
@@ -82,9 +100,11 @@ chrome.runtime.onConnect.addListener((port) => {
               join: (peer) => post({ type: 'join', peer }),
               leave: (peer) => post({ type: 'leave', peer }),
               message: (raw, peer) => post({ type: 'message', raw, peer }),
-              error: (message) => post({ type: 'error', message }),
+              error: (message, terminal, recoverable) =>
+                post({ type: 'error', message, terminal, recoverable }),
             });
             active = { port, tabId, transport };
+            document.dispatchEvent(new Event('ghostcursor-host-state'));
           } catch {
             post({
               type: 'error',
@@ -117,3 +137,21 @@ chrome.runtime.onConnect.addListener((port) => {
     }
   });
 });
+
+export const hostActive = () => Boolean(active);
+api.runtime.onMessage.addListener((message, sender, respond) => {
+  if (
+    sender.id === api.runtime.id &&
+    sender.url?.startsWith(api.runtime.getURL('')) &&
+    message?.channel === 'ghostcursor-host'
+  ) {
+    if (message.type === 'ping')
+      respond({ ready: true, active: Boolean(active) });
+    if (message.type === 'revoke') {
+      stopHost();
+      respond({ ok: true });
+    }
+  }
+  return false;
+});
+window.addEventListener('pagehide', stopHost);

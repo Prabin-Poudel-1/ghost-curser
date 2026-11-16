@@ -1,8 +1,9 @@
 export interface TransportHandlers {
+  ended?(): void;
   join(id: string): void;
   leave(id: string): void;
   message(raw: unknown, id: string): void;
-  error(message: string, terminal?: boolean): void;
+  error(message: string, terminal?: boolean, recoverable?: boolean): void;
 }
 export interface Transport {
   send(raw: string, target?: string): Promise<void>;

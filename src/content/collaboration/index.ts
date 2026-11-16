@@ -145,7 +145,10 @@ export class Collaboration {
     document.addEventListener(
       'visibilitychange',
       () => {
-        if (document.hidden) this.sampler.end();
+        if (document.hidden) {
+          this.sampler.end();
+          this.effects.clear();
+        }
       },
       options,
     );
@@ -313,11 +316,13 @@ export class Collaboration {
       )
     )
       return;
-    this.paint(message, person, owner);
+    if (!document.hidden) this.paint(message, person, owner);
   }
   remove(peer: string) {
     const owner = this.peerOwners.get(peer);
     if (owner) {
+      const name = this.people.get(owner)?.name ?? 'A participant';
+      this.notice(`${name} left the session.`);
       this.store.removeAuthor(owner);
       this.effects.clear(owner);
       this.people.delete(owner);

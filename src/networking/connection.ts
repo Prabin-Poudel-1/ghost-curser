@@ -1,3 +1,4 @@
+import { MAX_AUTO_RETRIES, retryDelay } from './retry';
 import { randomId } from '../shared/security';
 import {
   CONNECT_TIMEOUT_MS,
@@ -22,6 +23,8 @@ import {
 import type { Transport, TransportFactory } from './transport';
 interface Peer {
   participant?: Participant;
+  boundSession?: string;
+  incompatible?: boolean;
   seen: number;
   seq: number;
   window: number;
@@ -34,6 +37,8 @@ export interface SessionEvents {
   cursor(id: string, point: Point, participant: Participant): void;
   hide(id: string): void;
   remove(id: string): void;
+  end?(): void;
+  beforeRetry?(): Promise<void>;
   feature?(message: FeatureMessage, participant: Participant): void;
 }
 export class Connection {
@@ -48,6 +53,11 @@ export class Connection {
   private sending = false;
   private page = '';
   private profileRevision = 0;
+  private retryTimer?: ReturnType<typeof setTimeout>;
+  private retryAttempts = 0;
+  private restarting = false;
+  private stableSince = 0;
+
   constructor(
     private factory: TransportFactory,
     private events: SessionEvents,
@@ -71,7 +81,12 @@ export class Connection {
   ): Promise<void> {
     parseInvitation(invitation);
     const sessionId = preserveIdentity ? this.state.self?.sessionId : undefined;
-    if (!preserveIdentity) this.profileRevision = 0;
+    if (!preserveIdentity) {
+      this.profileRevision = 0;
+      this.retryAttempts = 0;
+    }
+    clearTimeout(this.retryTimer);
+    this.retryTimer = undefined;
     const generation = ++this.generation;
     const closing = this.dispose();
     this.page = pageIdentity(url);
@@ -104,8 +119,14 @@ export class Connection {
         message: (raw, id) => {
           if (current()) this.receive(raw, id);
         },
-        error: (message, terminal) => {
-          if (current()) this.fail(message, terminal);
+        error: (message, terminal, recoverable) => {
+          if (current()) this.fail(message, terminal, recoverable);
+        },
+        ended: () => {
+          if (current()) {
+            this.leave();
+            this.events.end?.();
+          }
         },
       });
       this.timer = setInterval(() => this.tick(), 1000);
@@ -128,6 +149,7 @@ export class Connection {
   }
   private hello(id?: string) {
     const self = this.state.self;
+    if (self) this.send({ v: 1, t: 'compat', min: 1, max: 2 }, id);
     if (self)
       this.send({ v: 1, t: 'hello', name: self.name, color: self.color }, id);
     if (self?.sessionId)
@@ -163,24 +185,35 @@ export class Connection {
     if (++peer.count > 60) return;
     const message = decodeWireMessage(raw);
     if (!message) return;
-    peer.seen = now;
+    if (message.v === 1 && message.t === 'compat') {
+      peer.incompatible = message.min > 2 || message.max < 1;
+      if (peer.incompatible) {
+        peer.participant = undefined;
+        this.events.remove(id);
+        this.state.error =
+          'Incompatible GhostCursor protocol. Ask this participant to update their extension.';
+        if (![...this.peers.values()].some((p) => p.participant))
+          this.state.status = 'disconnected';
+        this.emit();
+      }
+      return;
+    }
+    if (peer.incompatible) return;
     if (message.v === 2) {
       if (!peer.participant) return;
       if (message.t === 'participant') {
         if (
           message.sid === this.state.self?.sessionId ||
           [...this.peers.values()].some(
-            (p) => p !== peer && p.participant?.sessionId === message.sid,
+            (p) => p !== peer && p.boundSession === message.sid,
           )
         )
           return;
-        if (
-          peer.participant.sessionId &&
-          peer.participant.sessionId !== message.sid
-        )
-          return;
+        if (peer.boundSession && peer.boundSession !== message.sid) return;
         if (peer.participant.sessionId && message.rev <= peer.profileRev)
           return;
+        peer.boundSession = message.sid;
+        peer.seen = now;
         peer.profileRev = message.rev;
         peer.participant = {
           ...peer.participant,
@@ -196,6 +229,7 @@ export class Connection {
         if (message.seq <= peer.featureSeq) return;
         peer.featureSeq = message.seq;
       }
+      peer.seen = now;
       this.events.feature?.(message, peer.participant);
       return;
     }
@@ -204,6 +238,11 @@ export class Connection {
       return;
     }
     if (message.t === 'hello') {
+      peer.seen = now;
+      clearTimeout(this.retryTimer);
+      this.retryTimer = undefined;
+      delete this.state.retryAt;
+      if (!this.stableSince) this.stableSince = now;
       if (!peer.participant) {
         const occupied = new Set([
           this.state.self?.color,
@@ -224,6 +263,7 @@ export class Connection {
       return;
     }
     if (!peer.participant) return;
+    peer.seen = now;
     if (message.t === 'hide') this.events.hide(id);
     if (message.t === 'cursor' && message.seq > peer.seq) {
       peer.seq = message.seq;
@@ -234,6 +274,7 @@ export class Connection {
     if (!this.peers.delete(id)) return;
     this.events.remove(id);
     if (![...this.peers.values()].some((p) => p.participant)) {
+      this.stableSince = 0;
       this.state.status = 'connecting';
       this.started = this.now();
       this.state.error =
@@ -241,18 +282,56 @@ export class Connection {
     }
     this.emit();
   }
-  private fail(message: string, terminal = false) {
+  private fail(message: string, terminal = false, recoverable = false) {
     if (terminal) {
       ++this.generation;
       this.dispose();
       this.state.status = 'disconnected';
     }
+    this.stableSince = 0;
     this.state.error = message;
+    if (recoverable) this.scheduleRetry();
     if (!this.state.participants.length) this.state.status = 'disconnected';
     this.emit();
   }
+  private scheduleRetry() {
+    if (this.retryTimer || this.restarting || !this.state.invitation) return;
+    if (this.retryAttempts >= MAX_AUTO_RETRIES) {
+      this.state.error =
+        'Automatic recovery stopped after 4 attempts. Check your network and choose Retry connection.';
+      return;
+    }
+    const delay = retryDelay(this.retryAttempts++);
+    this.state.retryAt = this.now() + delay;
+    this.state.retryAttempt = this.retryAttempts;
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = undefined;
+      void this.restart(false);
+    }, delay);
+  }
+  private async restart(manual: boolean) {
+    if (this.restarting) return;
+    const { invitation, self } = this.state;
+    if (!invitation || !self) return;
+    this.restarting = true;
+    const generation = this.generation;
+    if (manual) this.retryAttempts = 0;
+    try {
+      await this.events.beforeRetry?.();
+      if (generation !== this.generation) return;
+      await this.start(invitation, self.name, self.color, this.page, true);
+    } catch {
+      this.state.error =
+        'Could not restore the extension networking context. Reopen the popup and retry.';
+      this.emit();
+    } finally {
+      this.restarting = false;
+    }
+  }
   private tick() {
     const now = this.now();
+    if (this.stableSince && now - this.stableSince > 60000)
+      this.retryAttempts = 0;
     for (const [id, peer] of this.peers) {
       if (now - peer.seen > PEER_TIMEOUT_MS && peer.participant) {
         peer.participant = undefined;
@@ -278,6 +357,8 @@ export class Connection {
     ) {
       this.fail(
         'No peer connected yet. Check the invitation and matching page. Signaling or direct WebRTC may be blocked; retry or try another network.',
+        false,
+        this.retryAttempts > 0,
       );
     }
   }
@@ -292,7 +373,7 @@ export class Connection {
       )
       .catch(() => {
         if (generation === this.generation)
-          this.fail('Cursor delivery failed. Retry the connection.');
+          this.fail('Cursor delivery failed.', false, true);
       })
       .finally(() => {
         if (generation === this.generation) this.sending = false;
@@ -324,11 +405,13 @@ export class Connection {
     this.send({ v: 1, t: 'hide' });
   }
   async retry() {
-    const { invitation, self } = this.state;
-    if (invitation && self)
-      await this.start(invitation, self.name, self.color, this.page, true);
+    await this.restart(true);
   }
   leave() {
+    clearTimeout(this.retryTimer);
+    this.retryTimer = undefined;
+    this.retryAttempts = 0;
+    this.stableSince = 0;
     this.send({ v: 1, t: 'bye' });
     ++this.generation;
     this.dispose();

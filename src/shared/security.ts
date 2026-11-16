@@ -49,6 +49,9 @@ export function supportedUrl(value: string): boolean {
     return (
       ['https:', 'http:'].includes(url.protocol) &&
       ![
+        'addons.mozilla.org',
+        'accounts.firefox.com',
+        'support.mozilla.org',
         'chromewebstore.google.com',
         'chrome.google.com',
         'microsoftedge.microsoft.com',

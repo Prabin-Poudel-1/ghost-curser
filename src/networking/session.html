@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>GhostCursor session</title>
+  </head>
+  <body>
+    <main>
+      <span class="eyebrow">GHOSTCURSOR / FIREFOX</span>
+      <h1>Your shared space stays connected here.</h1>
+      <p id="host-status" role="status">Waiting for your page to connect.</p>
+      <p>
+        Keep this tab open while collaborating. You can return to your webpage
+        and close the extension popup.
+      </p>
+      <p>
+        Closing this tab ends this profile’s connection. Notes are session-only.
+        No page content or invitation is displayed here.
+      </p>
+      <button id="stop-session">End collaboration</button>
+    </main>
+    <script type="module" src="./session.ts"></script>
+  </body>
+</html>

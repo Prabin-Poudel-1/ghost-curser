@@ -15,6 +15,8 @@ export interface SessionState {
   self?: Participant;
   participants: Participant[];
   error?: string;
+  retryAt?: number;
+  retryAttempt?: number;
 }
 export const emptyState = (): SessionState => ({
   status: 'disconnected',

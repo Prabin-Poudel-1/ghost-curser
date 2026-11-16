@@ -5,5 +5,5 @@ export default defineConfig({
     environment: 'jsdom',
     restoreMocks: true,
   },
-  define: { __TEST_BUILD__: 'true' },
+  define: { __TEST_BUILD__: 'true', __BROWSER__: '"chromium"' },
 });

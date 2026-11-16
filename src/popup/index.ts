@@ -1,3 +1,4 @@
+import { api } from '../browser/api';
 import './style.css';
 import { COLORS } from '../shared/constants';
 import {
@@ -25,7 +26,7 @@ async function request(command: Command) {
     throw new Error(
       'No webpage selected. Open a webpage and click the GhostCursor toolbar icon.',
     );
-  const response = (await chrome.runtime.sendMessage({
+  const response = (await api.runtime.sendMessage({
     channel: 'ghostcursor',
     tabId,
     command,
@@ -161,7 +162,7 @@ async function initialize() {
       : null;
     tabId = testTab
       ? Number(testTab)
-      : (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id;
+      : (await api.tabs.query({ active: true, currentWindow: true }))[0]?.id;
     await poll();
   } catch {
     error(
@@ -175,3 +176,10 @@ const polling = setInterval(() => void poll(), 1000);
 window.addEventListener('pagehide', () => clearInterval(polling), {
   once: true,
 });
+
+if (__BROWSER__ === 'firefox') {
+  const notice = find('browser-notice');
+  notice.hidden = false;
+  notice.textContent =
+    'Firefox opens a session tab to keep connections alive. Closing it ends collaboration.';
+}

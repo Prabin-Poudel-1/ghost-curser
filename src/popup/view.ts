@@ -9,8 +9,9 @@ export function viewState(state: SessionState) {
         : state.status === 'connecting'
           ? 'Connecting'
           : 'Disconnected',
-    detail:
-      state.status === 'connected'
+    detail: state.retryAt
+      ? `Retry ${state.retryAttempt ?? 1} of 4 in ${Math.max(0, Math.ceil((state.retryAt - Date.now()) / 1000))} seconds…`
+      : state.status === 'connected'
         ? 'Live cursors are connected peer to peer.'
         : 'Waiting for your people. Keep this webpage open.',
     retry: state.status !== 'connected',

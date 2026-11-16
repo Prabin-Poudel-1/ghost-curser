@@ -1,3 +1,4 @@
+import { PeerRateLimit } from './rate-limit';
 import { joinRoom } from 'trystero';
 import { MAX_PARTICIPANTS } from '../shared/constants';
 import { FEATURE_MAX_BYTES } from './collaboration-protocol';
@@ -23,12 +24,21 @@ export const createTransport: RoomTransportFactory = (
     },
     topic,
   );
+  const rate = new PeerRateLimit();
   const action = room.makeAction<string>('gc-v1');
   action.onReceive(({ byteLength }) => byteLength <= FEATURE_MAX_BYTES);
   const unsub = [
-    action.onMessage((data, { peerId }) => handlers.message(data, peerId)),
-    room.onPeerJoin(({ peerId }) => handlers.join(peerId)),
-    room.onPeerLeave(({ peerId }) => handlers.leave(peerId)),
+    action.onMessage((data, { peerId }) => {
+      if (rate.allow(peerId)) handlers.message(data, peerId);
+    }),
+    room.onPeerJoin(({ peerId }) => {
+      rate.add(peerId);
+      handlers.join(peerId);
+    }),
+    room.onPeerLeave(({ peerId }) => {
+      rate.remove(peerId);
+      handlers.leave(peerId);
+    }),
     room.onError(({ code }) => {
       handlers.error(
         code === 'peer-connect-failed'
@@ -37,7 +47,9 @@ export const createTransport: RoomTransportFactory = (
             ? 'Could not authenticate the peer. Check the invitation and retry.'
             : code === 'room-full'
               ? 'This room is full (8 participants maximum).'
-              : `Peer discovery or connection failed (${code}). Check your network and retry.`,
+              : 'Peer discovery or connection failed. Check your network and retry.',
+        false,
+        code === 'peer-connect-failed',
       );
     }),
   ];
@@ -49,6 +61,7 @@ export const createTransport: RoomTransportFactory = (
   return {
     send: (raw, target) => action.send(raw, target ? { target } : undefined),
     close: async () => {
+      rate.clear();
       unsub.forEach((fn) => fn());
       await room.leave();
     },

@@ -1,6 +1,7 @@
+import { api } from '../browser/api';
 import type { TransportFactory } from './transport';
 export const createTransport: TransportFactory = (page, secret, handlers) => {
-  const port = chrome.runtime.connect({ name: 'ghostcursor-transport-v1' });
+  const port = api.runtime.connect({ name: 'ghostcursor-transport-v1' });
   const pending = new Map<
     number,
     {
@@ -22,6 +23,13 @@ export const createTransport: TransportFactory = (page, secret, handlers) => {
   port.onMessage.addListener((value: unknown) => {
     if (!value || typeof value !== 'object') return;
     const m = value as Record<string, unknown>;
+    if (m.type === 'revoked') {
+      closed = true;
+      clearPending();
+      handlers.ended?.();
+      port.disconnect();
+      return;
+    }
     if (m.type === 'closed') {
       finishClose?.();
       return;
@@ -47,16 +55,19 @@ export const createTransport: TransportFactory = (page, secret, handlers) => {
         closed = true;
         clearPending();
       }
-      handlers.error(m.message, m.terminal === true);
+      handlers.error(m.message, m.terminal === true, m.recoverable === true);
       if (m.terminal === true) port.disconnect();
     }
   });
   port.onDisconnect.addListener(() => {
-    void chrome.runtime.lastError;
+    void api.runtime.lastError;
     clearPending();
-    if (!closed)
+    if (!closed && (__BROWSER__ === 'firefox' || !api.runtime.id))
+      handlers.ended?.();
+    else if (!closed)
       handlers.error(
-        'The extension transport stopped. Leave the room and join again.',
+        'The extension transport stopped. Recovering the connection.',
+        true,
         true,
       );
     closed = true;

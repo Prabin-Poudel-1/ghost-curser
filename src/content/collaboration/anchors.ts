@@ -8,21 +8,43 @@ export function extensionTarget(target: EventTarget | null): boolean {
 }
 export function sensitiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement) || extensionTarget(target)) return true;
+  let depth = 0;
   for (
     let element: Element | null = target;
     element;
     element = element.parentElement
   )
-    if (element.localName.includes('-') || element.shadowRoot) return true;
+    if (++depth > 64 || element.localName.includes('-') || element.shadowRoot)
+      return true;
   // Conservative: whole forms/editable regions and embedded documents are excluded.
   return !!target.closest(
     'input,textarea,select,form,[contenteditable]:not([contenteditable="false"]),[role="textbox"],iframe,object,embed',
   );
 }
-const shape = (element: Element) =>
-  Array.from(element.children)
-    .slice(0, 8)
-    .map((e) => e.localName);
+const shape = (element: Element) => {
+  const result: string[] = [];
+  for (
+    let child = element.firstElementChild;
+    child && result.length < 8;
+    child = child.nextElementSibling
+  )
+    result.push(child.localName);
+  return result;
+};
+function siblingsOf(parent: Element, tag: string): Element[] | null {
+  const result: Element[] = [];
+  let visited = 0;
+  for (
+    let child = parent.firstElementChild;
+    child;
+    child = child.nextElementSibling
+  ) {
+    if (++visited > 2048) return null;
+    if (child.localName === tag && !extensionTarget(child)) result.push(child);
+    if (result.length > 1024) return null;
+  }
+  return result;
+}
 export function anchorTarget(element: HTMLElement): HTMLElement {
   return element.closest<HTMLElement>('button,a,summary') ?? element;
 }
@@ -35,10 +57,8 @@ export function createAnchor(element: HTMLElement): DomAnchor | null {
     if (path.length >= 16 || !TAGS.has(current.localName)) return null;
     const parent: Element | null = current.parentElement;
     if (!parent) return null;
-    const siblings = Array.from(parent.children).filter(
-      (e) => e.localName === current!.localName && !extensionTarget(e),
-    );
-    if (siblings.length > 1024) return null;
+    const siblings = siblingsOf(parent, current.localName);
+    if (!siblings) return null;
     path.unshift({
       tag: current.localName,
       n: siblings.indexOf(current),
@@ -62,9 +82,8 @@ export function resolveAnchor(
     JSON.stringify(shape(e)) === JSON.stringify(anchor.shape);
   for (let index = 0; index < anchor.path.length; index++) {
     const step = anchor.path[index]!;
-    const siblings = Array.from(current.children).filter(
-      (e) => e.localName === step.tag && !extensionTarget(e),
-    );
+    const siblings = siblingsOf(current, step.tag);
+    if (!siblings) return null;
     if (siblings.length !== step.count || !siblings[step.n]) {
       // Only recover a formerly unique final child after insertion, within its
       // resolved parent. A global search can silently attach a deleted note's

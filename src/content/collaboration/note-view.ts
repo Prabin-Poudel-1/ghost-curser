@@ -25,9 +25,12 @@ export class NoteView {
   private destroyed = false;
   private cards = new Map<string, Card>();
   private frame = 0;
+  private throttle?: ReturnType<typeof setTimeout>;
+  private lastPosition = -Infinity;
   private abort = new AbortController();
   private mutation: MutationObserver;
   private resize: ResizeObserver | undefined;
+  private observedBody = document.body;
   private orphans = document.createElement('div');
   private draft: HTMLDivElement | undefined;
   constructor(
@@ -38,7 +41,7 @@ export class NoteView {
     this.orphans.setAttribute('aria-label', 'Unplaced notes');
     root.append(this.orphans);
     this.mutation = new MutationObserver(() => this.schedule());
-    this.mutation.observe(document.body, {
+    this.mutation.observe(document.documentElement, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -53,6 +56,18 @@ export class NoteView {
       passive: true,
       signal: this.abort.signal,
     });
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (document.hidden) {
+          cancelAnimationFrame(this.frame);
+          this.frame = 0;
+          clearTimeout(this.throttle);
+          this.throttle = undefined;
+        } else this.schedule();
+      },
+      { signal: this.abort.signal },
+    );
     window.addEventListener('resize', () => this.schedule(), {
       signal: this.abort.signal,
     });
@@ -216,11 +231,30 @@ export class NoteView {
     this.draft = undefined;
   }
   private schedule() {
-    if (!this.frame && this.cards.size)
-      this.frame = requestAnimationFrame(() => this.position());
+    if (
+      this.frame ||
+      this.throttle ||
+      !this.cards.size ||
+      document.hidden ||
+      this.destroyed
+    )
+      return;
+    const delay = Math.max(0, 50 - (performance.now() - this.lastPosition));
+    if (delay)
+      this.throttle = setTimeout(() => {
+        this.throttle = undefined;
+        this.schedule();
+      }, delay);
+    else this.frame = requestAnimationFrame(() => this.position());
   }
   private position() {
     this.frame = 0;
+    this.lastPosition = performance.now();
+    if (this.observedBody !== document.body) {
+      this.resize?.unobserve(this.observedBody);
+      this.observedBody = document.body;
+      if (this.observedBody) this.resize?.observe(this.observedBody);
+    }
     for (const card of this.cards.values()) {
       if (!card.target?.isConnected || sensitiveTarget(card.target)) {
         if (card.target) this.resize?.unobserve(card.target);
@@ -259,6 +293,8 @@ export class NoteView {
   destroy() {
     this.destroyed = true;
     this.abort.abort();
+    clearTimeout(this.throttle);
+    this.throttle = undefined;
     this.mutation.disconnect();
     this.resize?.disconnect();
     cancelAnimationFrame(this.frame);

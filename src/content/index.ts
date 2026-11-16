@@ -1,3 +1,4 @@
+import { api } from '../browser/api';
 import { Connection } from '../networking/connection';
 import { createTransport } from '../networking/bridge';
 import { normalize } from '../networking/protocol';
@@ -19,6 +20,16 @@ if (!scope.__ghostcursorInstalled) {
   let pageCheck: ReturnType<typeof setInterval> | undefined;
   let lastMove = 0;
   const connection = new Connection(createTransport, {
+    end: () => {
+      epoch++;
+      cleanup();
+    },
+    beforeRetry: async () => {
+      const response = await api.runtime.sendMessage({
+        channel: 'ghostcursor-recover',
+      });
+      if (!response?.ok) throw new Error('Networking host unavailable');
+    },
     state: (state) => collaboration?.state(state),
     feature: (message, participant) =>
       collaboration?.receive(message, participant),
@@ -95,11 +106,11 @@ if (!scope.__ghostcursorInstalled) {
   }
   let queue = Promise.resolve();
   let epoch = 0;
-  chrome.runtime.onMessage.addListener(
+  api.runtime.onMessage.addListener(
     (message: unknown, sender, respond: (r: Response) => void) => {
       if (
-        sender.id !== chrome.runtime.id ||
-        !sender.url?.startsWith(chrome.runtime.getURL('')) ||
+        sender.id !== api.runtime.id ||
+        !sender.url?.startsWith(api.runtime.getURL('')) ||
         !validCommand(message)
       )
         return false;

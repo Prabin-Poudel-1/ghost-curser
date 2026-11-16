@@ -5,6 +5,9 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'dist-test/**',
+      'dist-firefox/**',
+      'dist-firefox-test/**',
+      'artifacts/**',
       'node_modules/**',
       'test-results/**',
       'playwright-report/**',

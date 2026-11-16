@@ -1,3 +1,5 @@
+import { sessionHost } from '../browser/session-host';
+import { api } from '../browser/api';
 import { supportedUrl, validCommand } from '../shared/security';
 import { emptyState, type Command, type Response } from '../shared/types';
 interface Request {
@@ -9,30 +11,16 @@ function validRequest(input: unknown): input is Request {
   if (!input || typeof input !== 'object') return false;
   const r = input as Record<string, unknown>;
   return (
+    Object.keys(r).length === 3 &&
     r.channel === 'ghostcursor' &&
     Number.isInteger(r.tabId) &&
     Number(r.tabId) >= 0 &&
     validCommand(r.command)
   );
 }
-let creating: Promise<void> | undefined;
-async function ensureOffscreen() {
-  if (await chrome.offscreen.hasDocument()) return;
-  creating ??= chrome.offscreen
-    .createDocument({
-      url: 'src/networking/offscreen.html',
-      reasons: [chrome.offscreen.Reason.WEB_RTC],
-      justification:
-        'Keep user-activated peer connections alive without exposing webpage origins to signaling services.',
-    })
-    .finally(() => {
-      creating = undefined;
-    });
-  await creating;
-}
 async function handle({ tabId, command }: Request): Promise<Response> {
   try {
-    const tab = await chrome.tabs.get(tabId);
+    const tab = await api.tabs.get(tabId);
     if (command.type === 'start') {
       if (!tab.url || !supportedUrl(tab.url))
         return {
@@ -40,14 +28,14 @@ async function handle({ tabId, command }: Request): Promise<Response> {
           error:
             'Open a regular HTTP or HTTPS webpage, then click the extension icon. Browser pages, stores, PDFs, and extension pages are not supported.',
         };
-      await ensureOffscreen();
-      await chrome.scripting.executeScript({
+      await sessionHost.ensure();
+      await api.scripting.executeScript({
         target: { tabId, frameIds: [0] },
         files: ['content.js'],
       });
     }
     try {
-      return (await chrome.tabs.sendMessage(tabId, command, {
+      return (await api.tabs.sendMessage(tabId, command, {
         frameId: 0,
       })) as Response;
     } catch {
@@ -67,12 +55,26 @@ async function handle({ tabId, command }: Request): Promise<Response> {
     };
   }
 }
-chrome.runtime.onMessage.addListener(
+api.runtime.onMessage.addListener(
   (message: unknown, sender, respond: (r: Response) => void) => {
     if (
-      sender.id !== chrome.runtime.id ||
+      sender.id === api.runtime.id &&
+      sender.tab?.id !== undefined &&
+      sender.frameId === 0 &&
+      sender.url &&
+      supportedUrl(sender.url) &&
+      (message as { channel?: string })?.channel === 'ghostcursor-recover'
+    ) {
+      void sessionHost.ensure().then(
+        () => respond({ ok: true, state: emptyState() }),
+        () => respond({ ok: false, error: 'Could not restart networking.' }),
+      );
+      return true;
+    }
+    if (
+      sender.id !== api.runtime.id ||
       sender.url?.split('?')[0] !==
-        chrome.runtime.getURL('src/popup/index.html') ||
+        api.runtime.getURL('src/popup/index.html') ||
       !validRequest(message)
     )
       return false;
@@ -80,3 +82,11 @@ chrome.runtime.onMessage.addListener(
     return true;
   },
 );
+
+// Revoking an extension permission ends active sharing rather than silently
+// continuing with a stale capability. No permission is requested automatically.
+api.permissions.onRemoved.addListener(() => {
+  void api.runtime
+    .sendMessage({ channel: 'ghostcursor-host', type: 'revoke' })
+    .catch(() => {});
+});
